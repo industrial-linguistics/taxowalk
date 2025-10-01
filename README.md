@@ -1,2 +1,5 @@
 # bulksense
-Uses AI to do word sense detection on a corpus
+
+Badly named. Needs to be renamed.
+
+Uses AI to do detect which shopify category a product should be in.
