@@ -1,0 +1,54 @@
+.TH BULKSENSE 1 "March 2025" "bulksense" "User Commands"
+.SH NAME
+bulksense \- classify product descriptions into the Shopify taxonomy
+.SH SYNOPSIS
+.B bulksense
+.RI [ options ]
+.RI [ description ... ]
+.SH DESCRIPTION
+.B bulksense
+reads a product description from the command line or standard input and
+uses the OpenAI \fBgpt-5-mini\fR model to traverse the Shopify product taxonomy.
+The tool iteratively narrows down the most appropriate taxonomy node by offering
+candidate categories to the language model at each level of the hierarchy.
+.SH OPTIONS
+.TP
+.BR --stdin
+Read the product description from standard input. Input must be piped; the
+program will fail if the terminal is interactive and no data is provided.
+.TP
+.BR --openai-key =\fIKEY\fR
+Explicitly set the OpenAI API key. When omitted the tool reads the key from
+\fB$OPENAI_API_KEY\fR or \fB~/.openai.key\fR.
+.TP
+.BR --openai-base-url =\fIURL\fR
+Override the OpenAI API base URL (useful for proxies or gateways).
+.TP
+.BR --taxonomy-url =\fIURL\fR
+Specify an alternate taxonomy source. Both HTTPS URLs and filesystem paths
+are supported. Defaults to the upstream Shopify taxonomy JSON.
+.SH EXIT STATUS
+.TP
+.B 0
+Classification succeeded.
+.TP
+.B 1
+An error occurred.
+.SH EXAMPLES
+Classify a product description provided as command line text:
+.PP
+.EX
+$ bulksense "Handmade leather tote bag"
+.EX
+.PP
+Read the description from standard input:
+.PP
+.EX
+$ cat product.txt | bulksense --stdin
+.EX
+.SH FILES
+.TP
+~/.openai.key
+Fallback location for the OpenAI API key, containing the key on a single line.
+.SH SEE ALSO
+.BR openai (1)
