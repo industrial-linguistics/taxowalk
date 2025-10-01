@@ -1,0 +1,25 @@
+{
+  "version": "test",
+  "verticals": [
+    {
+      "name": "Vertical",
+      "categories": [
+        {
+          "id": "root",
+          "level": 0,
+          "name": "Root",
+          "full_name": "Root",
+          "children": [
+            {
+              "id": "child",
+              "level": 1,
+              "name": "Child",
+              "full_name": "Root > Child",
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
