@@ -92,7 +92,7 @@ func (d *DB) GetTotalTokens() (int64, error) {
 }
 
 func (d *DB) GetTokensLast24Hours() (int64, error) {
-	cutoff := time.Now().Add(-24 * time.Hour)
+	cutoff := time.Now().UTC().Add(-24 * time.Hour)
 	var total int64
 	err := d.db.QueryRow(`
 		SELECT COALESCE(SUM(total_tokens), 0)
