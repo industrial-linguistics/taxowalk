@@ -1,14 +1,14 @@
-BULKSENSE(1)
+TAXOWALK(1)
 ===========
 
 NAME
-    bulksense - classify product descriptions into the Shopify taxonomy
+    taxowalk - classify product descriptions into the Shopify taxonomy
 
 SYNOPSIS
-    bulksense [options] [description ...]
+    taxowalk [options] [description ...]
 
 DESCRIPTION
-    bulksense uses the OpenAI gpt-5-mini model to identify the most suitable
+    taxowalk uses the OpenAI gpt-5-mini model to identify the most suitable
     Shopify taxonomy node for a product description. The tool walks the
     taxonomy tree by repeatedly offering the model a list of candidate
     categories until a terminal node is reached.
@@ -18,7 +18,7 @@ OPTIONS
         Read the product description from standard input. Input must be piped.
 
     --openai-key KEY
-        Provide the OpenAI API key explicitly. If omitted, bulksense uses the
+        Provide the OpenAI API key explicitly. If omitted, taxowalk uses the
         OPENAI_API_KEY environment variable or the file %USERPROFILE%\.openai.key.
 
     --openai-base-url URL
@@ -30,8 +30,8 @@ OPTIONS
         official Shopify taxonomy feed.
 
 EXAMPLES
-    bulksense "Handmade leather tote bag"
-    type description.txt | bulksense --stdin
+    taxowalk "Handmade leather tote bag"
+    type description.txt | taxowalk --stdin
 
 FILES
     %USERPROFILE%\.openai.key

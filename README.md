@@ -1,6 +1,6 @@
-# bulksense
+# taxowalk
 
-bulksense classifies free-form product descriptions into the [Shopify product taxonomy](https://github.com/Shopify/product-taxonomy). It incrementally traverses the taxonomy by prompting OpenAI's `gpt-5-mini` model with the candidate categories that exist at each level until a leaf node (or "none of these") is selected.
+taxowalk classifies free-form product descriptions into the [Shopify product taxonomy](https://github.com/Shopify/product-taxonomy). It incrementally traverses the taxonomy by prompting OpenAI's `gpt-5-mini` model with the candidate categories that exist at each level until a leaf node (or "none of these") is selected.
 
 ## Features
 
@@ -17,7 +17,7 @@ bulksense classifies free-form product descriptions into the [Shopify product ta
 ### From source
 
 ```bash
-go build ./cmd/bulksense
+go build ./cmd/taxowalk
 ```
 
 ### Debian/Ubuntu package
@@ -25,9 +25,9 @@ go build ./cmd/bulksense
 Pull requests automatically build a `.deb` using `scripts/build_deb.sh`. Release builds publish to an apt repository hosted at `http://packages.industrial-linguistics.com/shopify/`. After a release is deployed, install it with:
 
 ```bash
-echo "deb [trusted=yes] http://packages.industrial-linguistics.com/shopify/apt stable main" | sudo tee /etc/apt/sources.list.d/bulksense.list
+echo "deb [trusted=yes] http://packages.industrial-linguistics.com/shopify/apt stable main" | sudo tee /etc/apt/sources.list.d/taxowalk.list
 sudo apt update
-sudo apt install bulksense
+sudo apt install taxowalk
 ```
 
 ### macOS and Windows builds
@@ -42,7 +42,7 @@ The resulting archives are uploaded by the workflow to the deployment host via `
 ## Usage
 
 ```bash
-bulksense [flags] [product description]
+taxowalk [flags] [product description]
 ```
 
 ### Flags
@@ -57,8 +57,8 @@ The command prints the selected taxonomy `full_name` followed by its canonical I
 ### Examples
 
 ```bash
-bulksense "Handmade leather tote bag"
-cat product.txt | bulksense --stdin
+taxowalk "Handmade leather tote bag"
+cat product.txt | taxowalk --stdin
 ```
 
 ## Development
@@ -66,14 +66,14 @@ cat product.txt | bulksense --stdin
 - `go test ./...` runs the unit test suite. Integration tests that require OpenAI are skipped unless `OPENAI_API_KEY` is set.
 - `scripts/build_deb.sh` builds a Debian package in `dist/deb/` without uploading it.
 - `scripts/build_macos.sh` and `scripts/build_windows.ps1` cross-compile for the respective platforms; these scripts are invoked only by release workflows.
-- `scripts/publish_release.sh` (used by the release workflow) builds all packages, assembles the apt repository metadata, and deploys the artifacts to `shopify@merah.cassia.ifost.org.au` via `rsync` using the `DEPLOYMENT_SSH_KEY` secret.
+- `scripts/publish_release.sh` (used by the release workflow) builds all packages, assembles the apt repository metadata, and deploys the artifacts to `taxowalk@merah.cassia.ifost.org.au` via `rsync` using the `DEPLOYMENT_SSH_KEY` secret.
 
 The `VERSION` file **must** be updated whenever a change may alter the executable or any installation package. Continuous integration checks ensure packages build before merging.
 
 ## Documentation
 
-- Linux/macOS man page: `docs/bulksense.1`
-- Windows help page: `docs/bulksense-help.txt`
+- Linux/macOS man page: `docs/taxowalk.1`
+- Windows help page: `docs/taxowalk-help.txt`
 
 ## Security
 

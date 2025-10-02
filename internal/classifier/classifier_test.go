@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"bulksense/internal/llm"
-	"bulksense/internal/taxonomy"
+	"taxowalk/internal/llm"
+	"taxowalk/internal/taxonomy"
 )
 
 type mockModel struct {

@@ -18,11 +18,11 @@ $env:GOOS = 'windows'
 $env:GOARCH = 'amd64'
 $env:CGO_ENABLED = '0'
 
-$binary = Join-Path $Build 'bulksense.exe'
-go build -trimpath -ldflags "-s -w" -o $binary (Join-Path $Root 'cmd/bulksense')
+$binary = Join-Path $Build 'taxowalk.exe'
+go build -trimpath -ldflags "-s -w" -o $binary (Join-Path $Root 'cmd/taxowalk')
 
-$helpSource = Join-Path $Root 'docs/bulksense-help.txt'
-$zipPath = Join-Path $Dist ("bulksense_{0}_windows_amd64.zip" -f $Version)
+$helpSource = Join-Path $Root 'docs/taxowalk-help.txt'
+$zipPath = Join-Path $Dist ("taxowalk_{0}_windows_amd64.zip" -f $Version)
 
 Compress-Archive -Path $binary, $helpSource -DestinationPath $zipPath -Force
 
