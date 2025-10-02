@@ -6,21 +6,27 @@ VERSION=$(cat "$ROOT_DIR/VERSION")
 
 "$ROOT_DIR/scripts/build_deb.sh"
 
+if ! command -v apt-ftparchive >/dev/null 2>&1; then
+    echo "apt-ftparchive is required but not installed" >&2
+    exit 1
+fi
+
 APT_ROOT="$ROOT_DIR/build/apt"
 rm -rf "$APT_ROOT"
 mkdir -p "$APT_ROOT/pool/main/t/taxowalk" "$APT_ROOT/dists/stable/main/binary-amd64"
 cp "$ROOT_DIR/dist/deb/taxowalk_${VERSION}_amd64.deb" "$APT_ROOT/pool/main/t/taxowalk/"
 
-dpkg-scanpackages "$APT_ROOT/pool" > "$APT_ROOT/dists/stable/main/binary-amd64/Packages"
-gzip -kf "$APT_ROOT/dists/stable/main/binary-amd64/Packages"
-
-cat > "$APT_ROOT/dists/stable/Release" <<RELEASE
-Suite: stable
-Codename: stable
-Components: main
-Architectures: amd64
-Description: taxowalk apt repository
-RELEASE
+pushd "$APT_ROOT" >/dev/null
+apt-ftparchive packages pool/ > dists/stable/main/binary-amd64/Packages
+gzip -fk dists/stable/main/binary-amd64/Packages
+apt-ftparchive \
+    -o APT::FTPArchive::Release::Suite="stable" \
+    -o APT::FTPArchive::Release::Codename="stable" \
+    -o APT::FTPArchive::Release::Components="main" \
+    -o APT::FTPArchive::Release::Architectures="amd64" \
+    -o APT::FTPArchive::Release::Description="taxowalk apt repository" \
+    release dists/stable > dists/stable/Release
+popd >/dev/null
 
 if [[ -z "${DEPLOYMENT_SSH_KEY:-}" ]]; then
     echo "DEPLOYMENT_SSH_KEY is not set" >&2
