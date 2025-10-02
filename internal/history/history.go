@@ -13,14 +13,14 @@ type DB struct {
 }
 
 type ClassificationRecord struct {
-	ID              int64
-	Timestamp       time.Time
-	ProductDesc     string
-	Category        string
-	CategoryID      string
-	PromptTokens    int
+	ID               int64
+	Timestamp        time.Time
+	ProductDesc      string
+	Category         string
+	CategoryID       string
+	PromptTokens     int
 	CompletionTokens int
-	TotalTokens     int
+	TotalTokens      int
 }
 
 func Open(dbPath string) (*DB, error) {

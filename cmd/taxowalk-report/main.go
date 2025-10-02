@@ -17,10 +17,10 @@ func main() {
 
 func run() error {
 	var (
-		dbPath       string
-		showAll      bool
-		check24h     bool
-		limitTokens  int64
+		dbPath      string
+		showAll     bool
+		check24h    bool
+		limitTokens int64
 	)
 
 	flag.StringVar(&dbPath, "db", "", "SQLite database path (required)")

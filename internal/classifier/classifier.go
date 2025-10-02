@@ -11,9 +11,9 @@ import (
 )
 
 type Classifier struct {
-	model       llm.Model
-	taxonomy    *taxonomy.Taxonomy
-	totalUsage  llm.Usage
+	model      llm.Model
+	taxonomy   *taxonomy.Taxonomy
+	totalUsage llm.Usage
 }
 
 func New(model llm.Model, tax *taxonomy.Taxonomy) (*Classifier, error) {
