@@ -12,27 +12,27 @@ CONTROL_DIR="$BUILD_DIR/DEBIAN"
 rm -rf "$BUILD_DIR"
 mkdir -p "$BIN_DIR" "$MAN_DIR" "$CONTROL_DIR" "$DIST_DIR"
 
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o "$BIN_DIR/bulksense" "$ROOT_DIR/cmd/bulksense"
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o "$BIN_DIR/taxowalk" "$ROOT_DIR/cmd/taxowalk"
 
-install -m 0644 "$ROOT_DIR/docs/bulksense.1" "$MAN_DIR/bulksense.1"
-gzip -f "$MAN_DIR/bulksense.1"
+install -m 0644 "$ROOT_DIR/docs/taxowalk.1" "$MAN_DIR/taxowalk.1"
+gzip -f "$MAN_DIR/taxowalk.1"
 
 cat > "$CONTROL_DIR/control" <<CONTROL
-Package: bulksense
+Package: taxowalk
 Version: $VERSION
 Section: utils
 Priority: optional
 Architecture: amd64
 Maintainer: Industrial Linguistics <packages@industrial-linguistics.com>
 Description: Shopify taxonomy classifier powered by OpenAI
- bulksense classifies product descriptions into the Shopify taxonomy by
+ taxowalk classifies product descriptions into the Shopify taxonomy by
  iteratively querying the gpt-5-mini model.
 CONTROL
 
 chmod 0755 "$BUILD_DIR/usr"
 chmod -R go-w "$BUILD_DIR/usr/share/man"
 
-OUTPUT="$DIST_DIR/bulksense_${VERSION}_amd64.deb"
+OUTPUT="$DIST_DIR/taxowalk_${VERSION}_amd64.deb"
 
 dpkg-deb --build "$BUILD_DIR" "$OUTPUT"
 

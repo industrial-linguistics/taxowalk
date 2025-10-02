@@ -18,7 +18,7 @@ trap 'rm -f "$KEY_FILE"' EXIT
 printf '%s' "$DEPLOYMENT_SSH_KEY" > "$KEY_FILE"
 chmod 600 "$KEY_FILE"
 
-REMOTE="shopify@merah.cassia.ifost.org.au:/var/www/vhosts/packages.industrial-linguistics.com/htdocs/shopify"
+REMOTE="taxowalk@merah.cassia.ifost.org.au:/var/www/vhosts/packages.industrial-linguistics.com/htdocs/taxowalk"
 
 rsync -avz -e "ssh -i $KEY_FILE -o StrictHostKeyChecking=no" "$ROOT_DIR/dist/macos/" "$REMOTE/macos/"
 rsync -avz -e "ssh -i $KEY_FILE -o StrictHostKeyChecking=no" "$ROOT_DIR/dist/windows/" "$REMOTE/windows/"

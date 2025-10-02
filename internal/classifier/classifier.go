@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"bulksense/internal/llm"
-	"bulksense/internal/taxonomy"
+	"taxowalk/internal/llm"
+	"taxowalk/internal/taxonomy"
 )
 
 type Classifier struct {

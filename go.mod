@@ -1,4 +1,4 @@
-module bulksense
+module taxowalk
 
 go 1.22
 

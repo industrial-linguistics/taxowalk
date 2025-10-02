@@ -1,12 +1,12 @@
-.TH BULKSENSE 1 "March 2025" "bulksense" "User Commands"
+.TH TAXOWALK 1 "March 2025" "taxowalk" "User Commands"
 .SH NAME
-bulksense \- classify product descriptions into the Shopify taxonomy
+taxowalk \- classify product descriptions into the Shopify taxonomy
 .SH SYNOPSIS
-.B bulksense
+.B taxowalk
 .RI [ options ]
 .RI [ description ... ]
 .SH DESCRIPTION
-.B bulksense
+.B taxowalk
 reads a product description from the command line or standard input and
 uses the OpenAI \fBgpt-5-mini\fR model to traverse the Shopify product taxonomy.
 The tool iteratively narrows down the most appropriate taxonomy node by offering
@@ -38,13 +38,13 @@ An error occurred.
 Classify a product description provided as command line text:
 .PP
 .EX
-$ bulksense "Handmade leather tote bag"
+$ taxowalk "Handmade leather tote bag"
 .EX
 .PP
 Read the description from standard input:
 .PP
 .EX
-$ cat product.txt | bulksense --stdin
+$ cat product.txt | taxowalk --stdin
 .EX
 .SH FILES
 .TP

@@ -12,16 +12,16 @@ import (
 	"strings"
 	"time"
 
-	"bulksense/internal/classifier"
-	"bulksense/internal/llm"
-	"bulksense/internal/taxonomy"
+	"taxowalk/internal/classifier"
+	"taxowalk/internal/llm"
+	"taxowalk/internal/taxonomy"
 )
 
 const defaultTaxonomyURL = "https://raw.githubusercontent.com/Shopify/product-taxonomy/refs/heads/main/dist/en/taxonomy.json"
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, "bulksense:", err)
+		fmt.Fprintln(os.Stderr, "taxowalk:", err)
 		os.Exit(1)
 	}
 }
@@ -39,7 +39,7 @@ func run() error {
 	flag.StringVar(&taxonomyURL, "taxonomy-url", defaultTaxonomyURL, "URL or file path for the Shopify taxonomy JSON")
 	flag.StringVar(&baseURL, "openai-base-url", "", "override the OpenAI API base URL")
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "bulksense - classify products into the Shopify taxonomy\n\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "taxowalk - classify products into the Shopify taxonomy\n\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [flags] [product description]\n\n", os.Args[0])
 		fmt.Fprintf(flag.CommandLine.Output(), "Flags:\n")
 		flag.PrintDefaults()
