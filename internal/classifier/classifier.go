@@ -11,8 +11,9 @@ import (
 )
 
 type Classifier struct {
-	model    llm.Model
-	taxonomy *taxonomy.Taxonomy
+	model       llm.Model
+	taxonomy    *taxonomy.Taxonomy
+	totalUsage  llm.Usage
 }
 
 func New(model llm.Model, tax *taxonomy.Taxonomy) (*Classifier, error) {
@@ -30,6 +31,7 @@ func (c *Classifier) Classify(ctx context.Context, description string) (*taxonom
 		return nil, errors.New("description is empty")
 	}
 
+	c.totalUsage = llm.Usage{}
 	var current *taxonomy.Node
 	options := c.taxonomy.Roots
 	var path []string
@@ -44,11 +46,16 @@ func (c *Classifier) Classify(ctx context.Context, description string) (*taxonom
 			prompt.Options[i] = llm.Option{Name: opt.Name, FullName: opt.FullName, ID: opt.ID}
 		}
 
-		choice, err := c.model.ChooseOption(ctx, prompt)
+		result, err := c.model.ChooseOption(ctx, prompt)
 		if err != nil {
 			return nil, err
 		}
-		normalized := strings.TrimSpace(choice)
+
+		c.totalUsage.PromptTokens += result.Usage.PromptTokens
+		c.totalUsage.CompletionTokens += result.Usage.CompletionTokens
+		c.totalUsage.TotalTokens += result.Usage.TotalTokens
+
+		normalized := strings.TrimSpace(result.Choice)
 		if strings.EqualFold(normalized, "none of these") {
 			break
 		}
@@ -60,7 +67,7 @@ func (c *Classifier) Classify(ctx context.Context, description string) (*taxonom
 			}
 		}
 		if next == nil {
-			return current, fmt.Errorf("model selected unknown option %q", choice)
+			return current, fmt.Errorf("model selected unknown option %q", result.Choice)
 		}
 
 		current = next
@@ -69,4 +76,8 @@ func (c *Classifier) Classify(ctx context.Context, description string) (*taxonom
 	}
 
 	return current, nil
+}
+
+func (c *Classifier) Usage() llm.Usage {
+	return c.totalUsage
 }

@@ -44,9 +44,9 @@ func WithBaseURL(url string) OptionFunc {
 	})
 }
 
-func (m *OpenAIModel) ChooseOption(ctx context.Context, prompt Prompt) (string, error) {
+func (m *OpenAIModel) ChooseOption(ctx context.Context, prompt Prompt) (*Result, error) {
 	if m == nil {
-		return "", errors.New("model is nil")
+		return nil, errors.New("model is nil")
 	}
 	sb := &strings.Builder{}
 	sb.WriteString("You are an expert Shopify taxonomy classifier.\n")
@@ -77,10 +77,19 @@ func (m *OpenAIModel) ChooseOption(ctx context.Context, prompt Prompt) (string, 
 		},
 	})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if len(resp.Choices) == 0 {
-		return "", errors.New("no completion choices returned")
+		return nil, errors.New("no completion choices returned")
 	}
-	return strings.TrimSpace(resp.Choices[0].Message.Content), nil
+
+	result := &Result{
+		Choice: strings.TrimSpace(resp.Choices[0].Message.Content),
+		Usage: Usage{
+			PromptTokens:     resp.Usage.PromptTokens,
+			CompletionTokens: resp.Usage.CompletionTokens,
+			TotalTokens:      resp.Usage.TotalTokens,
+		},
+	}
+	return result, nil
 }

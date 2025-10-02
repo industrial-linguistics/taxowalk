@@ -51,6 +51,7 @@ taxowalk [flags] [product description]
 - `--openai-key` – override the OpenAI API key (otherwise uses `OPENAI_API_KEY` or `~/.openai.key`).
 - `--openai-base-url` – point to a different OpenAI-compatible endpoint.
 - `--taxonomy-url` – provide an alternate taxonomy JSON URL or file path.
+- `--history-db` – SQLite database path to track token usage history (optional).
 
 The command prints the selected taxonomy `full_name` followed by its canonical ID.
 
@@ -59,7 +60,43 @@ The command prints the selected taxonomy `full_name` followed by its canonical I
 ```bash
 taxowalk "Handmade leather tote bag"
 cat product.txt | taxowalk --stdin
+taxowalk --history-db usage.db "Wireless headphones"
 ```
+
+## Token Usage Tracking
+
+When you provide the `--history-db` flag, taxowalk records each classification along with token usage to a SQLite database. Use `taxowalk-report` to analyze this data.
+
+### taxowalk-report
+
+```bash
+taxowalk-report [flags]
+```
+
+#### Flags
+
+- `--db` – SQLite database path (required).
+- `--all` – show all classification records with details.
+- `--check-24h` – check if token usage in the last 24 hours exceeds the limit.
+- `--limit` – token limit for 24-hour check (default: 5000000).
+
+#### Examples
+
+```bash
+# Show summary
+taxowalk-report --db usage.db
+
+# Show all records
+taxowalk-report --db usage.db --all
+
+# Check if you've exceeded 5M tokens in the last 24 hours
+taxowalk-report --db usage.db --check-24h
+
+# Check with custom limit
+taxowalk-report --db usage.db --check-24h --limit 1000000
+```
+
+The `--check-24h` flag exits with code 2 if the limit is exceeded, making it suitable for automation.
 
 ## Development
 

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"taxowalk/internal/classifier"
+	"taxowalk/internal/history"
 	"taxowalk/internal/llm"
 	"taxowalk/internal/taxonomy"
 )
@@ -32,12 +33,14 @@ func run() error {
 		apiKeyFlag  string
 		taxonomyURL string
 		baseURL     string
+		dbPath      string
 	)
 
 	flag.BoolVar(&useStdin, "stdin", false, "read the product description from standard input")
 	flag.StringVar(&apiKeyFlag, "openai-key", "", "OpenAI API key (overrides defaults)")
 	flag.StringVar(&taxonomyURL, "taxonomy-url", defaultTaxonomyURL, "URL or file path for the Shopify taxonomy JSON")
 	flag.StringVar(&baseURL, "openai-base-url", "", "override the OpenAI API base URL")
+	flag.StringVar(&dbPath, "history-db", "", "SQLite database path to track token usage history")
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "taxowalk - classify products into the Shopify taxonomy\n\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [flags] [product description]\n\n", os.Args[0])
@@ -82,6 +85,28 @@ func run() error {
 	if err != nil {
 		return err
 	}
+
+	usage := clf.Usage()
+
+	if dbPath != "" {
+		db, err := history.Open(dbPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to open history database: %v\n", err)
+		} else {
+			defer db.Close()
+			categoryName := ""
+			categoryID := ""
+			if node != nil {
+				categoryName = node.FullName
+				categoryID = node.ID
+			}
+			if err := db.RecordClassification(description, categoryName, categoryID,
+				usage.PromptTokens, usage.CompletionTokens, usage.TotalTokens); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: failed to record classification: %v\n", err)
+			}
+		}
+	}
+
 	if node == nil {
 		fmt.Println("No matching Shopify category found.")
 		return nil
