@@ -15,16 +15,19 @@ type mockModel struct {
 	err       error
 }
 
-func (m *mockModel) ChooseOption(ctx context.Context, prompt llm.Prompt) (string, error) {
+func (m *mockModel) ChooseOption(ctx context.Context, prompt llm.Prompt) (*llm.Result, error) {
 	if m.err != nil {
-		return "", m.err
+		return nil, m.err
 	}
-	if m.call >= len(m.responses) {
-		return "none of these", nil
+	choice := "none of these"
+	if m.call < len(m.responses) {
+		choice = m.responses[m.call]
+		m.call++
 	}
-	resp := m.responses[m.call]
-	m.call++
-	return resp, nil
+	return &llm.Result{
+		Choice: choice,
+		Usage:  llm.Usage{PromptTokens: 10, CompletionTokens: 5, TotalTokens: 15},
+	}, nil
 }
 
 func TestClassifierWalksTree(t *testing.T) {

@@ -14,6 +14,17 @@ type Prompt struct {
 	Options     []Option
 }
 
+type Usage struct {
+	PromptTokens     int
+	CompletionTokens int
+	TotalTokens      int
+}
+
+type Result struct {
+	Choice string
+	Usage  Usage
+}
+
 type Model interface {
-	ChooseOption(ctx context.Context, prompt Prompt) (string, error)
+	ChooseOption(ctx context.Context, prompt Prompt) (*Result, error)
 }
