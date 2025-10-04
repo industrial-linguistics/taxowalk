@@ -24,10 +24,17 @@ func TestFetchFromFile(t *testing.T) {
 		t.Fatalf("expected 1 root, got %d", len(tax.Roots))
 	}
 	root := tax.Roots[0]
-	if root.Name != "Root" {
+	if root.Name != "Vertical" {
 		t.Fatalf("unexpected root name: %s", root.Name)
 	}
-	if root.FindChildByName("Child") == nil {
+	if len(root.Children) != 1 {
+		t.Fatalf("expected 1 child category, got %d", len(root.Children))
+	}
+	cat := root.Children[0]
+	if cat.Name != "Root" {
+		t.Fatalf("unexpected child name: %s", cat.Name)
+	}
+	if cat.FindChildByName("Child") == nil {
 		t.Fatalf("child not found")
 	}
 }
@@ -99,5 +106,27 @@ func TestFetchCacheExpires(t *testing.T) {
 
 	if _, err := Fetch(ctx, server.URL); err == nil {
 		t.Fatalf("expected error when cache expired and server unavailable")
+	}
+}
+
+func TestFetchWithCacheDisabled(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	var hits int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&hits, 1)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"version":"test","verticals":[{"name":"Root","categories":[{"id":"1","level":1,"name":"Root","full_name":"Root","children":[]}]}]}`))
+	}))
+	t.Cleanup(server.Close)
+
+	if _, err := Fetch(context.Background(), server.URL, WithCacheDisabled()); err != nil {
+		t.Fatalf("Fetch returned error: %v", err)
+	}
+	if _, err := Fetch(context.Background(), server.URL, WithCacheDisabled()); err != nil {
+		t.Fatalf("Fetch returned error on repeated call: %v", err)
+	}
+	if hits < 2 {
+		t.Fatalf("expected cache to be bypassed, got %d hits", hits)
 	}
 }

@@ -12,7 +12,7 @@ mkdir -p "$WORK_DIR" "$DIST_DIR"
 for arch in amd64 arm64; do
     BIN_NAME="taxowalk"
     OUT_BIN="$WORK_DIR/${BIN_NAME}-${arch}"
-    GOOS=darwin GOARCH=$arch CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o "$OUT_BIN" "$ROOT_DIR/cmd/taxowalk"
+    GOOS=darwin GOARCH=$arch CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "$OUT_BIN" "$ROOT_DIR/cmd/taxowalk"
     PKG_DIR="$WORK_DIR/package-$arch"
     mkdir -p "$PKG_DIR/usr/local/bin" "$PKG_DIR/usr/local/share/man/man1"
     install -m 0755 "$OUT_BIN" "$PKG_DIR/usr/local/bin/$BIN_NAME"

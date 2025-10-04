@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -20,7 +21,10 @@ import (
 
 const defaultTaxonomyURL = "https://raw.githubusercontent.com/Shopify/product-taxonomy/refs/heads/main/dist/en/taxonomy.json"
 
-var debugEnabled bool
+var (
+	debugEnabled bool
+	version      = "dev"
+)
 
 func main() {
 	if err := run(); err != nil {
@@ -31,11 +35,13 @@ func main() {
 
 func run() error {
 	var (
-		useStdin    bool
-		apiKeyFlag  string
-		taxonomyURL string
-		baseURL     string
-		dbPath      string
+		useStdin        bool
+		apiKeyFlag      string
+		taxonomyURL     string
+		baseURL         string
+		dbPath          string
+		refreshTaxonomy bool
+		showVersion     bool
 	)
 
 	flag.BoolVar(&useStdin, "stdin", false, "read the product description from standard input")
@@ -44,6 +50,8 @@ func run() error {
 	flag.StringVar(&baseURL, "openai-base-url", "", "override the OpenAI API base URL")
 	flag.StringVar(&dbPath, "history-db", "", "SQLite database path to track token usage history")
 	flag.BoolVar(&debugEnabled, "debug", false, "enable verbose debug logging to standard error")
+	flag.BoolVar(&refreshTaxonomy, "refresh-taxonomy", false, "ignore cached taxonomy data and fetch a fresh copy")
+	flag.BoolVar(&showVersion, "version", false, "print the taxowalk version and exit")
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "taxowalk - classify products into the Shopify taxonomy\n\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [flags] [product description]\n\n", os.Args[0])
@@ -51,6 +59,11 @@ func run() error {
 		flag.PrintDefaults()
 	}
 	flag.Parse()
+
+	if showVersion {
+		fmt.Printf("taxowalk %s\n", resolvedVersion())
+		return nil
+	}
 
 	debugf("Arguments: %s", strings.Join(os.Args[1:], " "))
 
@@ -66,7 +79,11 @@ func run() error {
 
 	start := time.Now()
 	debugf("Fetching taxonomy from %s", taxonomyURL)
-	tax, err := taxonomy.Fetch(ctx, taxonomyURL)
+	var fetchOpts []taxonomy.FetchOption
+	if refreshTaxonomy {
+		fetchOpts = append(fetchOpts, taxonomy.WithCacheDisabled())
+	}
+	tax, err := taxonomy.Fetch(ctx, taxonomyURL, fetchOpts...)
 	if err != nil {
 		return fmt.Errorf("failed to load taxonomy: %w", err)
 	}
@@ -195,4 +212,43 @@ func debugf(format string, args ...interface{}) {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "[debug] "+format+"\n", args...)
+}
+
+func resolvedVersion() string {
+	if v := strings.TrimSpace(version); v != "" && v != "dev" {
+		return v
+	}
+	if data, err := os.ReadFile("VERSION"); err == nil {
+		if v := strings.TrimSpace(string(data)); v != "" {
+			return v
+		}
+	}
+	if exe, err := os.Executable(); err == nil {
+		candidates := []string{
+			filepath.Join(filepath.Dir(exe), "VERSION"),
+			filepath.Join(filepath.Dir(exe), "..", "VERSION"),
+		}
+		for _, path := range candidates {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				continue
+			}
+			if v := strings.TrimSpace(string(data)); v != "" {
+				return v
+			}
+		}
+	}
+	if v := versionFromBuildInfo(); v != "" {
+		return v
+	}
+	return "dev"
+}
+
+func versionFromBuildInfo() string {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		if v := strings.TrimSpace(info.Main.Version); v != "" && v != "(devel)" {
+			return v
+		}
+	}
+	return ""
 }

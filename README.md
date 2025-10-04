@@ -52,6 +52,9 @@ taxowalk [flags] [product description]
 - `--openai-base-url` – point to a different OpenAI-compatible endpoint.
 - `--taxonomy-url` – provide an alternate taxonomy JSON URL or file path.
 - `--history-db` – SQLite database path to track token usage history (optional).
+- `--debug` – write verbose diagnostic logging to stderr.
+- `--refresh-taxonomy` – bypass the cached taxonomy and fetch a fresh copy.
+- `--version` – print the installed taxowalk version and exit.
 
 The command prints the selected taxonomy `full_name` followed by its canonical ID.
 
