@@ -9,13 +9,36 @@
           "level": 0,
           "name": "Root",
           "full_name": "Root",
-          "children": [
+          "parent_id": null,
+          "ancestors": []
+        },
+        {
+          "id": "child",
+          "level": 1,
+          "name": "Child",
+          "full_name": "Root > Child",
+          "parent_id": "root",
+          "ancestors": [
+            {
+              "id": "root",
+              "name": "Root"
+            }
+          ]
+        },
+        {
+          "id": "grandchild",
+          "level": 2,
+          "name": "Grandchild",
+          "full_name": "Root > Child > Grandchild",
+          "parent_id": "child",
+          "ancestors": [
             {
               "id": "child",
-              "level": 1,
-              "name": "Child",
-              "full_name": "Root > Child",
-              "children": []
+              "name": "Child"
+            },
+            {
+              "id": "root",
+              "name": "Root"
             }
           ]
         }

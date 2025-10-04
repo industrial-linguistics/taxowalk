@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -34,8 +35,16 @@ func TestFetchFromFile(t *testing.T) {
 	if cat.Name != "Root" {
 		t.Fatalf("unexpected child name: %s", cat.Name)
 	}
-	if cat.FindChildByName("Child") == nil {
+	child := cat.FindChildByName("Child")
+	if child == nil {
 		t.Fatalf("child not found")
+	}
+	grandchild := child.FindChildByName("Grandchild")
+	if grandchild == nil {
+		t.Fatalf("grandchild not found")
+	}
+	if grandchild.FullName != "Root > Child > Grandchild" {
+		t.Fatalf("unexpected grandchild full name: %s", grandchild.FullName)
 	}
 }
 
@@ -128,5 +137,39 @@ func TestFetchWithCacheDisabled(t *testing.T) {
 	}
 	if hits < 2 {
 		t.Fatalf("expected cache to be bypassed, got %d hits", hits)
+	}
+}
+
+func TestDecodeBuildsHierarchyFromParentIDs(t *testing.T) {
+	data := `{"version":"test","verticals":[{"name":"Apparel & Accessories","categories":[{"id":"gid://shopify/TaxonomyCategory/aa","name":"Apparel & Accessories","full_name":"Apparel & Accessories","parent_id":null,"ancestors":[]},{"id":"gid://shopify/TaxonomyCategory/aa-1","name":"Clothing","full_name":"Apparel & Accessories > Clothing","parent_id":"gid://shopify/TaxonomyCategory/aa","ancestors":[{"id":"gid://shopify/TaxonomyCategory/aa","name":"Apparel & Accessories"}]},{"id":"gid://shopify/TaxonomyCategory/aa-1-1","name":"Tops","full_name":"Apparel & Accessories > Clothing > Tops","parent_id":"gid://shopify/TaxonomyCategory/aa-1","ancestors":[{"id":"gid://shopify/TaxonomyCategory/aa-1","name":"Clothing"},{"id":"gid://shopify/TaxonomyCategory/aa","name":"Apparel & Accessories"}]},{"id":"gid://shopify/TaxonomyCategory/aa-1-1-2","name":"Activewear Tops","full_name":"Apparel & Accessories > Clothing > Tops > Activewear Tops","parent_id":"gid://shopify/TaxonomyCategory/aa-1-1","ancestors":[{"id":"gid://shopify/TaxonomyCategory/aa-1-1","name":"Tops"},{"id":"gid://shopify/TaxonomyCategory/aa-1","name":"Clothing"},{"id":"gid://shopify/TaxonomyCategory/aa","name":"Apparel & Accessories"}]},{"id":"gid://shopify/TaxonomyCategory/aa-1-1-2-2","name":"T-Shirts","full_name":"","parent_id":"gid://shopify/TaxonomyCategory/aa-1-1-2","ancestors":[{"id":"gid://shopify/TaxonomyCategory/aa-1-1-2","name":"Activewear Tops"},{"id":"gid://shopify/TaxonomyCategory/aa-1-1","name":"Tops"},{"id":"gid://shopify/TaxonomyCategory/aa-1","name":"Clothing"},{"id":"gid://shopify/TaxonomyCategory/aa","name":"Apparel & Accessories"}]}]}]}`
+	tax, err := decode(strings.NewReader(data))
+	if err != nil {
+		t.Fatalf("decode returned error: %v", err)
+	}
+	if len(tax.Roots) != 1 {
+		t.Fatalf("expected 1 root, got %d", len(tax.Roots))
+	}
+	apparel := tax.Roots[0].FindChildByName("Apparel & Accessories")
+	if apparel == nil {
+		t.Fatalf("apparel category not found")
+	}
+	clothing := apparel.FindChildByName("Clothing")
+	if clothing == nil {
+		t.Fatalf("clothing category not found")
+	}
+	tops := clothing.FindChildByName("Tops")
+	if tops == nil {
+		t.Fatalf("tops category not found")
+	}
+	activewear := tops.FindChildByName("Activewear Tops")
+	if activewear == nil {
+		t.Fatalf("activewear tops category not found")
+	}
+	tshirts := activewear.FindChildByName("T-Shirts")
+	if tshirts == nil {
+		t.Fatalf("t-shirts category not found")
+	}
+	if !strings.HasSuffix(tshirts.FullName, "T-Shirts") {
+		t.Fatalf("expected full name to end with T-Shirts, got %q", tshirts.FullName)
 	}
 }
