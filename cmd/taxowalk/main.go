@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	_ "embed"
+
 	"taxowalk/internal/classifier"
 	"taxowalk/internal/history"
 	"taxowalk/internal/llm"
@@ -25,6 +27,9 @@ var (
 	debugEnabled bool
 	version      = "dev"
 )
+
+//go:embed VERSION
+var embeddedVersion string
 
 func main() {
 	if err := run(); err != nil {
@@ -218,25 +223,8 @@ func resolvedVersion() string {
 	if v := strings.TrimSpace(version); v != "" && v != "dev" {
 		return v
 	}
-	if data, err := os.ReadFile("VERSION"); err == nil {
-		if v := strings.TrimSpace(string(data)); v != "" {
-			return v
-		}
-	}
-	if exe, err := os.Executable(); err == nil {
-		candidates := []string{
-			filepath.Join(filepath.Dir(exe), "VERSION"),
-			filepath.Join(filepath.Dir(exe), "..", "VERSION"),
-		}
-		for _, path := range candidates {
-			data, err := os.ReadFile(path)
-			if err != nil {
-				continue
-			}
-			if v := strings.TrimSpace(string(data)); v != "" {
-				return v
-			}
-		}
+	if v := strings.TrimSpace(embeddedVersion); v != "" {
+		return v
 	}
 	if v := versionFromBuildInfo(); v != "" {
 		return v
