@@ -64,11 +64,18 @@ type rawVertical struct {
 }
 
 type rawCategory struct {
-	ID       string        `json:"id"`
-	Level    int           `json:"level"`
-	Name     string        `json:"name"`
-	FullName string        `json:"full_name"`
-	Children []rawCategory `json:"children"`
+	ID        string        `json:"id"`
+	Level     int           `json:"level"`
+	Name      string        `json:"name"`
+	FullName  string        `json:"full_name"`
+	ParentID  *string       `json:"parent_id"`
+	Children  []rawCategory `json:"children"`
+	Ancestors []rawAncestor `json:"ancestors"`
+}
+
+type rawAncestor struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 const cacheMaxAge = 24 * time.Hour
@@ -153,8 +160,35 @@ func decode(r io.Reader) (*Taxonomy, error) {
 	tax := &Taxonomy{Version: raw.Version}
 	for _, vertical := range raw.Verticals {
 		vertNode := &Node{Name: vertical.Name, FullName: vertical.Name, Children: []*Node{}}
+		nodes := make(map[string]*Node)
+		parents := make(map[string]string)
 		for _, cat := range vertical.Categories {
-			vertNode.Children = append(vertNode.Children, convert(cat))
+			node := ensureNode(nodes, cat.ID)
+			node.ID = cat.ID
+			node.Name = strings.TrimSpace(cat.Name)
+			node.FullName = buildFullName(cat)
+			parentID := parentIdentifier(cat)
+			if parentID != "" {
+				parents[cat.ID] = parentID
+			}
+		}
+		for id, node := range nodes {
+			parentID, ok := parents[id]
+			if !ok {
+				vertNode.Children = append(vertNode.Children, node)
+				continue
+			}
+			parent := nodes[parentID]
+			if parent == nil {
+				vertNode.Children = append(vertNode.Children, node)
+				continue
+			}
+			parent.Children = append(parent.Children, node)
+		}
+		for _, node := range nodes {
+			if node.Children == nil {
+				node.Children = []*Node{}
+			}
 		}
 		tax.Roots = append(tax.Roots, vertNode)
 	}
@@ -164,17 +198,47 @@ func decode(r io.Reader) (*Taxonomy, error) {
 	return tax, nil
 }
 
-func convert(cat rawCategory) *Node {
-	node := &Node{ID: cat.ID, Name: cat.Name, FullName: cat.FullName}
-	if len(cat.Children) == 0 {
-		node.Children = []*Node{}
-		return node
-	}
-	node.Children = make([]*Node, len(cat.Children))
-	for i, child := range cat.Children {
-		node.Children[i] = convert(child)
+func ensureNode(nodes map[string]*Node, id string) *Node {
+	node := nodes[id]
+	if node == nil {
+		node = &Node{Children: []*Node{}}
+		nodes[id] = node
 	}
 	return node
+}
+
+func parentIdentifier(cat rawCategory) string {
+	if cat.ParentID != nil {
+		return strings.TrimSpace(*cat.ParentID)
+	}
+	if len(cat.Ancestors) > 0 {
+		if parent := strings.TrimSpace(cat.Ancestors[0].ID); parent != "" {
+			return parent
+		}
+	}
+	return ""
+}
+
+func buildFullName(cat rawCategory) string {
+	full := strings.TrimSpace(cat.FullName)
+	if full != "" {
+		return full
+	}
+	names := make([]string, 0, len(cat.Ancestors)+1)
+	for i := len(cat.Ancestors) - 1; i >= 0; i-- {
+		name := strings.TrimSpace(cat.Ancestors[i].Name)
+		if name != "" {
+			names = append(names, name)
+		}
+	}
+	name := strings.TrimSpace(cat.Name)
+	if name != "" {
+		names = append(names, name)
+	}
+	if len(names) == 0 {
+		return cat.Name
+	}
+	return strings.Join(names, " > ")
 }
 
 func cacheFilePath(source string) (string, error) {
