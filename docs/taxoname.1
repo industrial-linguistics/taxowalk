@@ -1,0 +1,42 @@
+.TH TAXONAME 1 "March 2025" "taxowalk" "User Commands"
+.SH NAME
+taxoname \- resolve Shopify taxonomy IDs to their full path
+.SH SYNOPSIS
+.B taxoname
+.RI [ options ]
+.I taxonomy-id
+.SH DESCRIPTION
+.B taxoname
+looks up a category within the Shopify product taxonomy and prints its
+full human-readable path. The command uses the same cached taxonomy data
+as
+.BR taxowalk (1)
+and honours the taxonomy retrieval flags shared across the tools.
+.SH OPTIONS
+.TP
+.BR --taxonomy-url =\fIURL\fR
+Specify an alternate taxonomy source. HTTPS URLs and filesystem paths are
+supported. Defaults to the upstream Shopify taxonomy JSON.
+.TP
+.BR --refresh-taxonomy
+Ignore any cached taxonomy file and fetch a fresh copy from the source
+URL.
+.TP
+.BR --version
+Print the taxoname version and exit.
+.SH EXIT STATUS
+.TP
+.B 0
+The taxonomy entry was found and printed.
+.TP
+.B 1
+An error occurred (for example, the ID was not found).
+.SH EXAMPLES
+Print the full taxonomy path for a known category identifier:
+.PP
+.EX
+$ taxoname gid://shopify/TaxonomyCategory/aa-1-13-8
+.EX
+.SH SEE ALSO
+.BR taxowalk (1),
+.BR taxopath (1)

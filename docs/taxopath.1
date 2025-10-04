@@ -1,0 +1,56 @@
+.TH TAXOPATH 1 "March 2025" "taxowalk" "User Commands"
+.SH NAME
+taxopath \- convert Shopify taxonomy IDs to numeric dot paths
+.SH SYNOPSIS
+.B taxopath
+.RI [ options ]
+.RI [ --maximum | 
+.I taxonomy-id
+.RI ]
+.SH DESCRIPTION
+.B taxopath
+maps Shopify taxonomy identifiers to dot-separated numeric paths based on a
+hard-coded ordering of the taxonomy tree. Supplying
+.I --maximum
+scans the taxonomy and prints the largest numeric component present in any
+path.
+.SH OPTIONS
+.TP
+.BR --maximum
+Print the largest number that appears in any taxonomy path instead of
+converting a single identifier. This option may not be combined with a
+positional argument.
+.TP
+.BR --taxonomy-url =\fIURL\fR
+Specify an alternate taxonomy source. HTTPS URLs and filesystem paths are
+supported. Defaults to the upstream Shopify taxonomy JSON.
+.TP
+.BR --refresh-taxonomy
+Ignore any cached taxonomy file and fetch a fresh copy from the source
+URL.
+.TP
+.BR --version
+Print the taxopath version and exit.
+.SH EXIT STATUS
+.TP
+.B 0
+The requested information was printed successfully.
+.TP
+.B 1
+An error occurred.
+.SH EXAMPLES
+Convert a taxonomy identifier to a dot-separated numeric path:
+.PP
+.EX
+$ taxopath gid://shopify/TaxonomyCategory/aa-1-13-8
+1.1.13.8
+.EX
+.PP
+Find the largest numeric value present in the taxonomy:
+.PP
+.EX
+$ taxopath --maximum
+.EX
+.SH SEE ALSO
+.BR taxowalk (1),
+.BR taxoname (1)

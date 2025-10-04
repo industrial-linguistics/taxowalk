@@ -12,10 +12,15 @@ CONTROL_DIR="$BUILD_DIR/DEBIAN"
 rm -rf "$BUILD_DIR"
 mkdir -p "$BIN_DIR" "$MAN_DIR" "$CONTROL_DIR" "$DIST_DIR"
 
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "$BIN_DIR/taxowalk" "$ROOT_DIR/cmd/taxowalk"
+binaries=(taxowalk taxoname taxopath)
+for bin in "${binaries[@]}"; do
+    GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "$BIN_DIR/$bin" "$ROOT_DIR/cmd/$bin"
+done
 
-install -m 0644 "$ROOT_DIR/docs/taxowalk.1" "$MAN_DIR/taxowalk.1"
-gzip -f "$MAN_DIR/taxowalk.1"
+for man in "${binaries[@]}"; do
+    install -m 0644 "$ROOT_DIR/docs/${man}.1" "$MAN_DIR/${man}.1"
+    gzip -f "$MAN_DIR/${man}.1"
+done
 
 cat > "$CONTROL_DIR/control" <<CONTROL
 Package: taxowalk
@@ -24,9 +29,10 @@ Section: utils
 Priority: optional
 Architecture: amd64
 Maintainer: Industrial Linguistics <packages@industrial-linguistics.com>
-Description: Shopify taxonomy classifier powered by OpenAI
+Description: Shopify taxonomy utilities powered by OpenAI
  taxowalk classifies product descriptions into the Shopify taxonomy by
- iteratively querying the gpt-5-mini model.
+ iteratively querying the gpt-5-mini model. Companion tools resolve and
+ inspect taxonomy identifiers.
 CONTROL
 
 chmod 0755 "$BUILD_DIR/usr"

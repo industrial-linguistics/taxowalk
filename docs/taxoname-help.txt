@@ -1,0 +1,11 @@
+taxoname - resolve taxonomy IDs to their full path
+
+Usage: ./taxoname [flags] <taxonomy id>
+
+Flags:
+  -refresh-taxonomy
+        ignore cached taxonomy data and fetch a fresh copy
+  -taxonomy-url string
+        URL or file path for the Shopify taxonomy JSON (default "https://raw.githubusercontent.com/Shopify/product-taxonomy/refs/heads/main/dist/en/taxonomy.json")
+  -version
+        print the taxoname version and exit

@@ -18,12 +18,18 @@ $env:GOOS = 'windows'
 $env:GOARCH = 'amd64'
 $env:CGO_ENABLED = '0'
 
-$binary = Join-Path $Build 'taxowalk.exe'
-go build -trimpath -ldflags "-s -w -X main.version=$Version" -o $binary (Join-Path $Root 'cmd/taxowalk')
+$binaries = @('taxowalk', 'taxoname', 'taxopath')
+$builtPaths = @()
+foreach ($name in $binaries) {
+    $binaryPath = Join-Path $Build ("{0}.exe" -f $name)
+    go build -trimpath -ldflags "-s -w -X main.version=$Version" -o $binaryPath (Join-Path $Root 'cmd' $name)
+    $builtPaths += $binaryPath
+}
 
-$helpSource = Join-Path $Root 'docs/taxowalk-help.txt'
+$helpFiles = @('taxowalk-help.txt', 'taxoname-help.txt', 'taxopath-help.txt') |
+    ForEach-Object { Join-Path $Root 'docs' $_ }
+
 $zipPath = Join-Path $Dist ("taxowalk_{0}_windows_amd64.zip" -f $Version)
-
-Compress-Archive -Path $binary, $helpSource -DestinationPath $zipPath -Force
+Compress-Archive -Path ($builtPaths + $helpFiles) -DestinationPath $zipPath -Force
 
 Write-Output "Built $zipPath"

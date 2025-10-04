@@ -11,6 +11,7 @@ taxowalk classifies free-form product descriptions into the [Shopify product tax
 - Linux man page and Windows help page.
 - Debian package build pipeline for pull requests.
 - Release automation that builds Linux, macOS, and Windows packages and publishes them to an apt repository served from `packages.industrial-linguistics.com/shopify` via SSH.
+- Companion tools to convert between taxonomy IDs, names, and dot-separated paths.
 
 ## Installation
 
@@ -54,18 +55,40 @@ taxowalk [flags] [product description]
 - `--history-db` – SQLite database path to track token usage history (optional).
 - `--debug` – write verbose diagnostic logging to stderr.
 - `--refresh-taxonomy` – bypass the cached taxonomy and fetch a fresh copy.
-- `--show-leaf-name` – print the final taxonomy name alongside the full path and ID.
+- `--show-path` – print the full taxonomy path alongside the category ID.
+- `--show-leaf-name` – print the final taxonomy name after the category ID.
 - `--version` – print the installed taxowalk version and exit.
 
-The command prints the selected taxonomy `full_name` followed by its canonical ID. When `--show-leaf-name` is supplied an additional line containing the final taxonomy name is printed.
+By default the command prints only the canonical taxonomy ID. Supply `--show-path` to display the full taxonomy name before the ID and `--show-leaf-name` to add the terminal category name as a third line.
 
 ### Examples
 
 ```bash
 taxowalk "Handmade leather tote bag"
+taxowalk --show-path "Wireless headphones"
 cat product.txt | taxowalk --stdin
-taxowalk --history-db usage.db "Wireless headphones"
 ```
+
+### taxoname
+
+Resolve a taxonomy ID to its human-readable path.
+
+```bash
+taxoname [flags] <taxonomy id>
+```
+
+The command accepts the same taxonomy flags as `taxowalk` and prints the category's full taxonomy path.
+
+### taxopath
+
+Convert taxonomy IDs to dot-separated numeric paths or inspect the numeric space.
+
+```bash
+taxopath [flags] <taxonomy id>
+taxopath [flags] --maximum
+```
+
+When given an ID the tool prints the corresponding dot-separated path (for example `gid://shopify/TaxonomyCategory/aa-1-13-8` becomes `1.1.13.8`). With `--maximum` it scans the taxonomy to report the largest number that appears in any path component.
 
 ## Token Usage Tracking
 
@@ -113,8 +136,8 @@ The `VERSION` file **must** be updated whenever a change may alter the executabl
 
 ## Documentation
 
-- Linux/macOS man page: `docs/taxowalk.1`
-- Windows help page: `docs/taxowalk-help.txt`
+- Linux/macOS man pages: `docs/taxowalk.1`, `docs/taxoname.1`, `docs/taxopath.1`
+- Windows help pages: `docs/taxowalk-help.txt`, `docs/taxoname-help.txt`, `docs/taxopath-help.txt`
 
 ## Security
 

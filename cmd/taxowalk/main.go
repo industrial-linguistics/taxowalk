@@ -9,18 +9,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"strings"
 	"time"
 
-	versioninfo "taxowalk"
 	"taxowalk/internal/classifier"
+	"taxowalk/internal/cmdutil"
 	"taxowalk/internal/history"
 	"taxowalk/internal/llm"
-	"taxowalk/internal/taxonomy"
 )
-
-const defaultTaxonomyURL = "https://raw.githubusercontent.com/Shopify/product-taxonomy/refs/heads/main/dist/en/taxonomy.json"
 
 var (
 	debugEnabled bool
@@ -36,25 +32,25 @@ func main() {
 
 func run() error {
 	var (
-		useStdin        bool
-		apiKeyFlag      string
-		taxonomyURL     string
-		baseURL         string
-		dbPath          string
-		refreshTaxonomy bool
-		showVersion     bool
-		showLeafName    bool
+		useStdin     bool
+		apiKeyFlag   string
+		showPath     bool
+		baseURL      string
+		dbPath       string
+		showVersion  bool
+		showLeafName bool
 	)
 
 	flag.BoolVar(&useStdin, "stdin", false, "read the product description from standard input")
 	flag.StringVar(&apiKeyFlag, "openai-key", "", "OpenAI API key (overrides defaults)")
-	flag.StringVar(&taxonomyURL, "taxonomy-url", defaultTaxonomyURL, "URL or file path for the Shopify taxonomy JSON")
 	flag.StringVar(&baseURL, "openai-base-url", "", "override the OpenAI API base URL")
 	flag.StringVar(&dbPath, "history-db", "", "SQLite database path to track token usage history")
 	flag.BoolVar(&debugEnabled, "debug", false, "enable verbose debug logging to standard error")
-	flag.BoolVar(&refreshTaxonomy, "refresh-taxonomy", false, "ignore cached taxonomy data and fetch a fresh copy")
 	flag.BoolVar(&showVersion, "version", false, "print the taxowalk version and exit")
+	flag.BoolVar(&showPath, "show-path", false, "print the full taxonomy path before the category ID")
 	flag.BoolVar(&showLeafName, "show-leaf-name", false, "print the final taxonomy name after classification")
+	taxFlags := cmdutil.NewTaxonomyFlags()
+	taxFlags.Register(flag.CommandLine)
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "taxowalk - classify products into the Shopify taxonomy\n\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [flags] [product description]\n\n", os.Args[0])
@@ -64,7 +60,7 @@ func run() error {
 	flag.Parse()
 
 	if showVersion {
-		fmt.Printf("taxowalk %s\n", resolvedVersion())
+		fmt.Printf("taxowalk %s\n", cmdutil.ResolveVersion(version))
 		return nil
 	}
 
@@ -81,12 +77,8 @@ func run() error {
 	defer cancel()
 
 	start := time.Now()
-	debugf("Fetching taxonomy from %s", taxonomyURL)
-	var fetchOpts []taxonomy.FetchOption
-	if refreshTaxonomy {
-		fetchOpts = append(fetchOpts, taxonomy.WithCacheDisabled())
-	}
-	tax, err := taxonomy.Fetch(ctx, taxonomyURL, fetchOpts...)
+	debugf("Fetching taxonomy from %s", taxFlags.URL)
+	tax, err := taxFlags.Fetch(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to load taxonomy: %w", err)
 	}
@@ -157,7 +149,9 @@ func run() error {
 	}
 
 	debugf("Classification result: %s (%s)", node.FullName, node.ID)
-	fmt.Println(node.FullName)
+	if showPath && node.FullName != "" {
+		fmt.Println(node.FullName)
+	}
 	fmt.Println(node.ID)
 	if showLeafName {
 		fmt.Println(node.Name)
@@ -219,26 +213,4 @@ func debugf(format string, args ...interface{}) {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "[debug] "+format+"\n", args...)
-}
-
-func resolvedVersion() string {
-	if v := strings.TrimSpace(version); v != "" && v != "dev" {
-		return v
-	}
-	if v := versioninfo.Value(); v != "" {
-		return v
-	}
-	if v := versionFromBuildInfo(); v != "" {
-		return v
-	}
-	return "dev"
-}
-
-func versionFromBuildInfo() string {
-	if info, ok := debug.ReadBuildInfo(); ok {
-		if v := strings.TrimSpace(info.Main.Version); v != "" && v != "(devel)" {
-			return v
-		}
-	}
-	return ""
 }
