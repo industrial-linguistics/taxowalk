@@ -54,9 +54,10 @@ taxowalk [flags] [product description]
 - `--history-db` – SQLite database path to track token usage history (optional).
 - `--debug` – write verbose diagnostic logging to stderr.
 - `--refresh-taxonomy` – bypass the cached taxonomy and fetch a fresh copy.
+- `--show-leaf-name` – print the final taxonomy name alongside the full path and ID.
 - `--version` – print the installed taxowalk version and exit.
 
-The command prints the selected taxonomy `full_name` followed by its canonical ID.
+The command prints the selected taxonomy `full_name` followed by its canonical ID. When `--show-leaf-name` is supplied an additional line containing the final taxonomy name is printed.
 
 ### Examples
 

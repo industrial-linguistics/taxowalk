@@ -12,9 +12,11 @@ Flags:
   -openai-key string
     	OpenAI API key (overrides defaults)
   -refresh-taxonomy
-    	ignore cached taxonomy data and fetch a fresh copy
+        ignore cached taxonomy data and fetch a fresh copy
+  -show-leaf-name
+        print the final taxonomy name after classification
   -stdin
-    	read the product description from standard input
+        read the product description from standard input
   -taxonomy-url string
     	URL or file path for the Shopify taxonomy JSON (default "https://raw.githubusercontent.com/Shopify/product-taxonomy/refs/heads/main/dist/en/taxonomy.json")
   -version
