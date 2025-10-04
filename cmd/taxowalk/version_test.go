@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	versioninfo "taxowalk"
 )
 
 func TestEmbeddedVersionMatchesRoot(t *testing.T) {
@@ -19,7 +21,7 @@ func TestEmbeddedVersionMatchesRoot(t *testing.T) {
 		t.Fatalf("failed to read root VERSION file: %v", err)
 	}
 	rootVersion := strings.TrimSpace(string(data))
-	embedded := strings.TrimSpace(embeddedVersion)
+	embedded := versioninfo.Value()
 	if rootVersion == "" {
 		t.Fatal("root VERSION file is empty")
 	}
