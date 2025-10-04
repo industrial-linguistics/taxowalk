@@ -43,6 +43,7 @@ func run() error {
 		dbPath          string
 		refreshTaxonomy bool
 		showVersion     bool
+		showLeafName    bool
 	)
 
 	flag.BoolVar(&useStdin, "stdin", false, "read the product description from standard input")
@@ -53,6 +54,7 @@ func run() error {
 	flag.BoolVar(&debugEnabled, "debug", false, "enable verbose debug logging to standard error")
 	flag.BoolVar(&refreshTaxonomy, "refresh-taxonomy", false, "ignore cached taxonomy data and fetch a fresh copy")
 	flag.BoolVar(&showVersion, "version", false, "print the taxowalk version and exit")
+	flag.BoolVar(&showLeafName, "show-leaf-name", false, "print the final taxonomy name after classification")
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "taxowalk - classify products into the Shopify taxonomy\n\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [flags] [product description]\n\n", os.Args[0])
@@ -155,7 +157,11 @@ func run() error {
 	}
 
 	debugf("Classification result: %s (%s)", node.FullName, node.ID)
-	fmt.Printf("%s\n%s\n", node.FullName, node.ID)
+	fmt.Println(node.FullName)
+	fmt.Println(node.ID)
+	if showLeafName {
+		fmt.Println(node.Name)
+	}
 	return nil
 }
 
