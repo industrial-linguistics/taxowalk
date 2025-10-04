@@ -1,7 +1,10 @@
 package taxonomy
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type Taxonomy struct {
@@ -67,12 +71,19 @@ type rawCategory struct {
 	Children []rawCategory `json:"children"`
 }
 
+const cacheMaxAge = 24 * time.Hour
+
+var errCacheMiss = errors.New("cache miss")
+
 func Fetch(ctx context.Context, source string) (*Taxonomy, error) {
 	if source == "" {
 		return nil, errors.New("taxonomy source is empty")
 	}
 	u, err := url.Parse(source)
 	if err == nil && u.Scheme != "" && u.Scheme != "file" {
+		if tax, err := loadFromCache(source); err == nil {
+			return tax, nil
+		}
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, source, nil)
 		if err != nil {
 			return nil, err
@@ -85,7 +96,16 @@ func Fetch(ctx context.Context, source string) (*Taxonomy, error) {
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("failed to fetch taxonomy: %s", resp.Status)
 		}
-		return decode(resp.Body)
+		data, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		tax, err := decode(bytes.NewReader(data))
+		if err != nil {
+			return nil, err
+		}
+		saveToCache(source, data)
+		return tax, nil
 	}
 
 	// Treat as file path.
@@ -130,4 +150,62 @@ func convert(cat rawCategory) *Node {
 		node.Children[i] = convert(child)
 	}
 	return node
+}
+
+func cacheFilePath(source string) (string, error) {
+	dir, err := os.UserCacheDir()
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256([]byte(source))
+	name := hex.EncodeToString(sum[:]) + ".json"
+	return filepath.Join(dir, "taxowalk", name), nil
+}
+
+func loadFromCache(source string) (*Taxonomy, error) {
+	path, err := cacheFilePath(source)
+	if err != nil {
+		return nil, errCacheMiss
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, errCacheMiss
+	}
+	if time.Since(info.ModTime()) > cacheMaxAge {
+		return nil, errCacheMiss
+	}
+	f, err := os.Open(filepath.Clean(path))
+	if err != nil {
+		return nil, errCacheMiss
+	}
+	defer f.Close()
+	tax, err := decode(f)
+	if err != nil {
+		return nil, errCacheMiss
+	}
+	return tax, nil
+}
+
+func saveToCache(source string, data []byte) {
+	path, err := cacheFilePath(source)
+	if err != nil {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), "taxonomy-*.json")
+	if err != nil {
+		return
+	}
+	defer tmp.Close()
+	if _, err := tmp.Write(data); err != nil {
+		os.Remove(tmp.Name())
+		return
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmp.Name())
+		return
+	}
+	_ = os.Rename(tmp.Name(), path)
 }
