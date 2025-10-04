@@ -12,7 +12,7 @@ CONTROL_DIR="$BUILD_DIR/DEBIAN"
 rm -rf "$BUILD_DIR"
 mkdir -p "$BIN_DIR" "$MAN_DIR" "$CONTROL_DIR" "$DIST_DIR"
 
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o "$BIN_DIR/taxowalk" "$ROOT_DIR/cmd/taxowalk"
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "$BIN_DIR/taxowalk" "$ROOT_DIR/cmd/taxowalk"
 
 install -m 0644 "$ROOT_DIR/docs/taxowalk.1" "$MAN_DIR/taxowalk.1"
 gzip -f "$MAN_DIR/taxowalk.1"

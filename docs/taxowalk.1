@@ -27,6 +27,21 @@ Override the OpenAI API base URL (useful for proxies or gateways).
 .BR --taxonomy-url =\fIURL\fR
 Specify an alternate taxonomy source. Both HTTPS URLs and filesystem paths
 are supported. Defaults to the upstream Shopify taxonomy JSON.
+.TP
+.BR --history-db =\fIPATH\fR
+Record token usage and classification history in the given SQLite database.
+Use \fBtaxowalk-report\fR to analyse the recorded data.
+.TP
+.BR --debug
+Enable verbose diagnostic logging on standard error.
+.TP
+.BR --refresh-taxonomy
+Ignore any cached taxonomy file and fetch a fresh copy from the source URL.
+Taxonomies downloaded from HTTPS sources are cached for 24 hours by default
+under \fB$XDG_CACHE_HOME/taxowalk\fR.
+.TP
+.BR --version
+Print the taxowalk version and exit.
 .SH EXIT STATUS
 .TP
 .B 0

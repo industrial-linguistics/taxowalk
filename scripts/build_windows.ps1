@@ -19,7 +19,7 @@ $env:GOARCH = 'amd64'
 $env:CGO_ENABLED = '0'
 
 $binary = Join-Path $Build 'taxowalk.exe'
-go build -trimpath -ldflags "-s -w" -o $binary (Join-Path $Root 'cmd/taxowalk')
+go build -trimpath -ldflags "-s -w -X main.version=$Version" -o $binary (Join-Path $Root 'cmd/taxowalk')
 
 $helpSource = Join-Path $Root 'docs/taxowalk-help.txt'
 $zipPath = Join-Path $Dist ("taxowalk_{0}_windows_amd64.zip" -f $Version)

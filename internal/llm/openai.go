@@ -63,7 +63,18 @@ func (m *OpenAIModel) ChooseOption(ctx context.Context, prompt Prompt) (*Result,
 	}
 	sb.WriteString("Candidate categories:\n")
 	for i, opt := range prompt.Options {
-		sb.WriteString(fmt.Sprintf("%d. %s (full: %s, id: %s)\n", i+1, opt.Name, opt.FullName, opt.ID))
+		label := opt.FullName
+		if strings.TrimSpace(label) == "" {
+			label = opt.Name
+		}
+		if strings.TrimSpace(label) == "" {
+			label = opt.ID
+		}
+		if strings.TrimSpace(opt.ID) != "" {
+			sb.WriteString(fmt.Sprintf("%d. %s (id: %s)\n", i+1, label, opt.ID))
+		} else {
+			sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, label))
+		}
 	}
 	sb.WriteString(fmt.Sprintf("%d. none of these\n", len(prompt.Options)+1))
 	sb.WriteString("\nRespond with the category name/full name/id or 'none of these'.")

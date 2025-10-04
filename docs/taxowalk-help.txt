@@ -1,39 +1,21 @@
-TAXOWALK(1)
-===========
+taxowalk - classify products into the Shopify taxonomy
 
-NAME
-    taxowalk - classify product descriptions into the Shopify taxonomy
+Usage: ./taxowalk [flags] [product description]
 
-SYNOPSIS
-    taxowalk [options] [description ...]
-
-DESCRIPTION
-    taxowalk uses the OpenAI gpt-5-mini model to identify the most suitable
-    Shopify taxonomy node for a product description. The tool walks the
-    taxonomy tree by repeatedly offering the model a list of candidate
-    categories until a terminal node is reached.
-
-OPTIONS
-    --stdin
-        Read the product description from standard input. Input must be piped.
-
-    --openai-key KEY
-        Provide the OpenAI API key explicitly. If omitted, taxowalk uses the
-        OPENAI_API_KEY environment variable or the file %USERPROFILE%\.openai.key.
-
-    --openai-base-url URL
-        Override the OpenAI API base URL. Helpful when routing requests through
-        a proxy or gateway.
-
-    --taxonomy-url URL
-        Specify an alternate taxonomy JSON file or URL. Defaults to the
-        official Shopify taxonomy feed.
-
-EXAMPLES
-    taxowalk "Handmade leather tote bag"
-    type description.txt | taxowalk --stdin
-
-FILES
-    %USERPROFILE%\.openai.key
-        Default location for the OpenAI API key when no flag or environment
-        variable is provided.
+Flags:
+  -debug
+    	enable verbose debug logging to standard error
+  -history-db string
+    	SQLite database path to track token usage history
+  -openai-base-url string
+    	override the OpenAI API base URL
+  -openai-key string
+    	OpenAI API key (overrides defaults)
+  -refresh-taxonomy
+    	ignore cached taxonomy data and fetch a fresh copy
+  -stdin
+    	read the product description from standard input
+  -taxonomy-url string
+    	URL or file path for the Shopify taxonomy JSON (default "https://raw.githubusercontent.com/Shopify/product-taxonomy/refs/heads/main/dist/en/taxonomy.json")
+  -version
+    	print the taxowalk version and exit

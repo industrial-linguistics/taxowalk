@@ -75,14 +75,36 @@ const cacheMaxAge = 24 * time.Hour
 
 var errCacheMiss = errors.New("cache miss")
 
-func Fetch(ctx context.Context, source string) (*Taxonomy, error) {
+type fetchConfig struct {
+	disableCache bool
+}
+
+// FetchOption configures Fetch behaviour.
+type FetchOption func(*fetchConfig)
+
+// WithCacheDisabled disables the taxonomy cache when fetching.
+func WithCacheDisabled() FetchOption {
+	return func(cfg *fetchConfig) {
+		cfg.disableCache = true
+	}
+}
+
+func Fetch(ctx context.Context, source string, opts ...FetchOption) (*Taxonomy, error) {
 	if source == "" {
 		return nil, errors.New("taxonomy source is empty")
 	}
+	cfg := fetchConfig{}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&cfg)
+		}
+	}
 	u, err := url.Parse(source)
 	if err == nil && u.Scheme != "" && u.Scheme != "file" {
-		if tax, err := loadFromCache(source); err == nil {
-			return tax, nil
+		if !cfg.disableCache {
+			if tax, err := loadFromCache(source); err == nil {
+				return tax, nil
+			}
 		}
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, source, nil)
 		if err != nil {
@@ -104,7 +126,9 @@ func Fetch(ctx context.Context, source string) (*Taxonomy, error) {
 		if err != nil {
 			return nil, err
 		}
-		saveToCache(source, data)
+		if !cfg.disableCache {
+			saveToCache(source, data)
+		}
 		return tax, nil
 	}
 
@@ -128,10 +152,11 @@ func decode(r io.Reader) (*Taxonomy, error) {
 	}
 	tax := &Taxonomy{Version: raw.Version}
 	for _, vertical := range raw.Verticals {
+		vertNode := &Node{Name: vertical.Name, FullName: vertical.Name, Children: []*Node{}}
 		for _, cat := range vertical.Categories {
-			node := convert(cat)
-			tax.Roots = append(tax.Roots, node)
+			vertNode.Children = append(vertNode.Children, convert(cat))
 		}
+		tax.Roots = append(tax.Roots, vertNode)
 	}
 	if len(tax.Roots) == 0 {
 		return nil, errors.New("taxonomy has no root categories")
