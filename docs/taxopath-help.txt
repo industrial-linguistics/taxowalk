@@ -1,0 +1,14 @@
+taxopath - convert taxonomy IDs to dot-separated numeric paths
+
+Usage: ./taxopath [flags] <taxonomy id>
+       ./taxopath [flags] --maximum
+
+Flags:
+  -maximum
+        print the largest number used in any taxonomy path
+  -refresh-taxonomy
+        ignore cached taxonomy data and fetch a fresh copy
+  -taxonomy-url string
+        URL or file path for the Shopify taxonomy JSON (default "https://raw.githubusercontent.com/Shopify/product-taxonomy/refs/heads/main/dist/en/taxonomy.json")
+  -version
+        print the taxopath version and exit

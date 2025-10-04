@@ -11,6 +11,9 @@ reads a product description from the command line or standard input and
 uses the OpenAI \fBgpt-5-mini\fR model to traverse the Shopify product taxonomy.
 The tool iteratively narrows down the most appropriate taxonomy node by offering
 candidate categories to the language model at each level of the hierarchy.
+By default only the canonical taxonomy identifier is written to standard
+output. Use \fB--show-path\fR to include the full taxonomy name and
+\fB--show-leaf-name\fR to append the terminal category name.
 .SH OPTIONS
 .TP
 .BR --stdin
@@ -40,6 +43,9 @@ Ignore any cached taxonomy file and fetch a fresh copy from the source URL.
 Taxonomies downloaded from HTTPS sources are cached for 24 hours by default
 under \fB$XDG_CACHE_HOME/taxowalk\fR.
 .TP
+.BR --show-path
+Print the full taxonomy path before the category ID.
+.TP
 .BR --show-leaf-name
 Print the final taxonomy name (leaf category) after classification.
 .TP
@@ -57,6 +63,12 @@ Classify a product description provided as command line text:
 .PP
 .EX
 $ taxowalk "Handmade leather tote bag"
+.EX
+.PP
+Show the full taxonomy path alongside the identifier:
+.PP
+.EX
+$ taxowalk --show-path "Wireless headphones"
 .EX
 .PP
 Read the description from standard input:
