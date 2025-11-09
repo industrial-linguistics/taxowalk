@@ -41,3 +41,16 @@ chmod 600 "$KEY_FILE"
 REMOTE="taxowalk@merah.cassia.ifost.org.au:/var/www/vhosts/packages.industrial-linguistics.com/htdocs/taxowalk"
 
 rsync -avz -e "ssh -i $KEY_FILE -o StrictHostKeyChecking=no" "$APT_ROOT/" "$REMOTE/apt/"
+
+# Sign the Release file on the remote server
+ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no taxowalk@merah.cassia.ifost.org.au << 'REMOTE_SCRIPT'
+cd /var/www/vhosts/packages.industrial-linguistics.com/htdocs/taxowalk/apt/dists/stable
+
+# Sign Release file to create Release.gpg (detached signature)
+gpg --batch --yes --armor --detach-sign -o Release.gpg Release
+
+# Create InRelease (clearsigned Release)
+gpg --batch --yes --clearsign -o InRelease Release
+
+echo "Repository signed successfully"
+REMOTE_SCRIPT
