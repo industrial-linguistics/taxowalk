@@ -21,8 +21,9 @@ type Usage struct {
 }
 
 type Result struct {
-	Choice string
-	Usage  Usage
+	Choice      string
+	ChoiceIndex *int
+	Usage       Usage
 }
 
 type Model interface {

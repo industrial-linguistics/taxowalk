@@ -3,6 +3,7 @@ package classifier
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"taxowalk/internal/llm"
@@ -10,10 +11,11 @@ import (
 )
 
 type mockModel struct {
-	responses []string
-	call      int
-	err       error
-	prompts   []llm.Prompt
+	responses       []string
+	responseIndexes []*int
+	call            int
+	err             error
+	prompts         []llm.Prompt
 }
 
 func (m *mockModel) ChooseOption(ctx context.Context, prompt llm.Prompt) (*llm.Result, error) {
@@ -21,15 +23,29 @@ func (m *mockModel) ChooseOption(ctx context.Context, prompt llm.Prompt) (*llm.R
 		return nil, m.err
 	}
 	m.prompts = append(m.prompts, prompt)
+	call := m.call
+	m.call++
+
 	choice := "none of these"
-	if m.call < len(m.responses) {
-		choice = m.responses[m.call]
-		m.call++
+	if call < len(m.responses) {
+		choice = m.responses[call]
+	}
+	var choiceIndex *int
+	if call < len(m.responseIndexes) {
+		choiceIndex = m.responseIndexes[call]
+		if choiceIndex != nil && choice == "none of these" {
+			choice = "indexed choice"
+		}
 	}
 	return &llm.Result{
-		Choice: choice,
-		Usage:  llm.Usage{PromptTokens: 10, CompletionTokens: 5, TotalTokens: 15},
+		Choice:      choice,
+		ChoiceIndex: choiceIndex,
+		Usage:       llm.Usage{PromptTokens: 10, CompletionTokens: 5, TotalTokens: 15},
 	}, nil
+}
+
+func intPtr(v int) *int {
+	return &v
 }
 
 func TestClassifierWalksTree(t *testing.T) {
@@ -38,7 +54,7 @@ func TestClassifierWalksTree(t *testing.T) {
 	root.Children = []*taxonomy.Node{child}
 	tax := &taxonomy.Taxonomy{Version: "test", Roots: []*taxonomy.Node{root}}
 
-	model := &mockModel{responses: []string{"Root", "none of these"}}
+	model := &mockModel{responseIndexes: []*int{intPtr(0), nil}}
 	clf, err := New(model, tax)
 	if err != nil {
 		t.Fatalf("New returned error: %v", err)
@@ -58,7 +74,7 @@ func TestClassifierSelectsChild(t *testing.T) {
 	root.Children = []*taxonomy.Node{child}
 	tax := &taxonomy.Taxonomy{Version: "test", Roots: []*taxonomy.Node{root}}
 
-	model := &mockModel{responses: []string{"Root", "Child"}}
+	model := &mockModel{responseIndexes: []*int{intPtr(0), intPtr(0)}}
 	clf, err := New(model, tax)
 	if err != nil {
 		t.Fatalf("New returned error: %v", err)
@@ -93,7 +109,7 @@ func TestClassifierOffersOnlyNextLevelOptions(t *testing.T) {
 	root := &taxonomy.Node{ID: "", Name: "Top", FullName: "Top", Children: []*taxonomy.Node{parent}}
 	tax := &taxonomy.Taxonomy{Version: "test", Roots: []*taxonomy.Node{root}}
 
-	model := &mockModel{responses: []string{"Top", "Category", "Sub"}}
+	model := &mockModel{responseIndexes: []*int{intPtr(0), intPtr(0), intPtr(0)}}
 	clf, err := New(model, tax)
 	if err != nil {
 		t.Fatalf("New returned error: %v", err)
@@ -117,9 +133,58 @@ func TestClassifierOffersOnlyNextLevelOptions(t *testing.T) {
 	}
 }
 
-func TestNormalizeChoiceStripsIDAnnotation(t *testing.T) {
-	input := "Apparel & Accessories > Clothing > Tops (id: gid://example)"
-	if got := normalizeChoice(input); got != "Apparel & Accessories > Clothing > Tops" {
-		t.Fatalf("normalizeChoice returned %q", got)
+func TestClassifierUsesChoiceIndex(t *testing.T) {
+	apparel := &taxonomy.Node{ID: "aa", Name: "Apparel & Accessories", FullName: "Apparel & Accessories"}
+	arts := &taxonomy.Node{ID: "ae", Name: "Arts & Entertainment", FullName: "Arts & Entertainment"}
+	tax := &taxonomy.Taxonomy{Version: "test", Roots: []*taxonomy.Node{apparel, arts}}
+
+	model := &mockModel{responseIndexes: []*int{intPtr(1)}}
+	clf, err := New(model, tax)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	node, err := clf.Classify(context.Background(), "example")
+	if err != nil {
+		t.Fatalf("Classify returned error: %v", err)
+	}
+	if node != arts {
+		t.Fatalf("expected arts node, got %#v", node)
+	}
+}
+
+func TestClassifierRejectsOutOfRangeChoiceIndex(t *testing.T) {
+	apparel := &taxonomy.Node{ID: "aa", Name: "Apparel & Accessories", FullName: "Apparel & Accessories"}
+	tax := &taxonomy.Taxonomy{Version: "test", Roots: []*taxonomy.Node{apparel}}
+
+	model := &mockModel{responseIndexes: []*int{intPtr(4)}}
+	clf, err := New(model, tax)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	_, err = clf.Classify(context.Background(), "example")
+	if err == nil {
+		t.Fatal("expected error for out-of-range choice index")
+	}
+	if !strings.Contains(err.Error(), "out-of-range option index") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestClassifierRejectsUnstructuredSelection(t *testing.T) {
+	apparel := &taxonomy.Node{ID: "aa", Name: "Apparel & Accessories", FullName: "Apparel & Accessories"}
+	tax := &taxonomy.Taxonomy{Version: "test", Roots: []*taxonomy.Node{apparel}}
+
+	model := &mockModel{responses: []string{"Apparel & Accessories"}}
+	clf, err := New(model, tax)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	_, err = clf.Classify(context.Background(), "example")
+	if err == nil {
+		t.Fatal("expected error for unstructured selection")
+	}
+	if !strings.Contains(err.Error(), "unstructured selection") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

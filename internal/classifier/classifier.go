@@ -87,21 +87,25 @@ func (c *Classifier) Classify(ctx context.Context, description string) (*taxonom
 		c.totalUsage.CompletionTokens += result.Usage.CompletionTokens
 		c.totalUsage.TotalTokens += result.Usage.TotalTokens
 
-		normalized := normalizeChoice(result.Choice)
-		if strings.EqualFold(normalized, "none of these") {
-			c.logf("Model selected 'none of these'; stopping classification")
-			break
-		}
-		var next *taxonomy.Node
-		for _, opt := range available {
-			if strings.EqualFold(opt.Name, normalized) || strings.EqualFold(opt.FullName, normalized) || strings.EqualFold(opt.ID, normalized) {
-				next = opt
+		if result.ChoiceIndex == nil {
+			if strings.EqualFold(strings.TrimSpace(result.Choice), "none of these") {
+				c.logf("Model selected 'none of these'; stopping classification")
 				break
 			}
+			return current, fmt.Errorf("model returned unstructured selection %q", result.Choice)
 		}
+
+		idx := *result.ChoiceIndex
+		if idx < 0 || idx >= len(available) {
+			return current, fmt.Errorf("model selected out-of-range option index %d", idx)
+		}
+		next := available[idx]
 		if next == nil {
-			c.logf("Model choice %q did not match any candidate option", result.Choice)
-			return current, fmt.Errorf("model selected unknown option %q", result.Choice)
+			return current, fmt.Errorf("model selected empty option index %d", idx)
+		}
+		if strings.EqualFold(strings.TrimSpace(result.Choice), "none of these") {
+			c.logf("Model selected 'none of these'; stopping classification")
+			return current, errors.New("model returned conflicting selection: index with 'none of these'")
 		}
 
 		current = next
@@ -120,18 +124,6 @@ func (c *Classifier) Classify(ctx context.Context, description string) (*taxonom
 
 func (c *Classifier) Usage() llm.Usage {
 	return c.totalUsage
-}
-
-func normalizeChoice(choice string) string {
-	normalized := strings.TrimSpace(choice)
-	if normalized == "" {
-		return normalized
-	}
-	lower := strings.ToLower(normalized)
-	if idx := strings.LastIndex(lower, " (id:"); idx != -1 {
-		normalized = strings.TrimSpace(normalized[:idx])
-	}
-	return normalized
 }
 
 func nextLevelOptions(parent *taxonomy.Node, options []*taxonomy.Node) []*taxonomy.Node {
