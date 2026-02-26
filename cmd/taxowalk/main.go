@@ -39,6 +39,7 @@ func run() error {
 		dbPath       string
 		showVersion  bool
 		showLeafName bool
+		timeout      time.Duration
 	)
 
 	flag.BoolVar(&useStdin, "stdin", false, "read the product description from standard input")
@@ -46,6 +47,7 @@ func run() error {
 	flag.StringVar(&baseURL, "openai-base-url", "", "override the OpenAI API base URL")
 	flag.StringVar(&dbPath, "history-db", "", "SQLite database path to track token usage history")
 	flag.BoolVar(&debugEnabled, "debug", false, "enable verbose debug logging to standard error")
+	flag.DurationVar(&timeout, "timeout", 5*time.Minute, "overall timeout for taxonomy fetch + classification (e.g. 2m, 30s)")
 	flag.BoolVar(&showVersion, "version", false, "print the taxowalk version and exit")
 	flag.BoolVar(&showPath, "show-path", false, "print the full taxonomy path before the category ID")
 	flag.BoolVar(&showLeafName, "show-leaf-name", false, "print the final taxonomy name after classification")
@@ -73,7 +75,11 @@ func run() error {
 
 	debugf("Product description (%d chars)", len(description))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx := context.Background()
+	cancel := func() {}
+	if timeout > 0 {
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+	}
 	defer cancel()
 
 	start := time.Now()
@@ -114,6 +120,9 @@ func run() error {
 
 	node, err := clf.Classify(ctx, description)
 	if err != nil {
+		if timeout > 0 && errors.Is(err, context.DeadlineExceeded) {
+			return fmt.Errorf("timed out after %s (try increasing --timeout): %w", timeout, err)
+		}
 		return err
 	}
 

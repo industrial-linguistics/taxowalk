@@ -54,6 +54,7 @@ taxowalk [flags] [product description]
 - `--taxonomy-url` – provide an alternate taxonomy JSON URL or file path.
 - `--history-db` – SQLite database path to track token usage history (optional).
 - `--debug` – write verbose diagnostic logging to stderr.
+- `--timeout` – overall timeout for taxonomy fetch + classification (default: 5m; use `0` to disable).
 - `--refresh-taxonomy` – bypass the cached taxonomy and fetch a fresh copy.
 - `--show-path` – print the full taxonomy path alongside the category ID.
 - `--show-leaf-name` – print the final taxonomy name after the category ID.
@@ -148,4 +149,3 @@ The application reads the OpenAI API key from:
 3. `~/.openai.key` (one-line file)
 
 GitHub Actions use repository secrets (`OPENAI_API_KEY`, `DEPLOYMENT_SSH_KEY`) to run tests and deploy release artifacts without persisting them to GitHub.
-

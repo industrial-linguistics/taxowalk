@@ -38,6 +38,11 @@ Use \fBtaxowalk-report\fR to analyse the recorded data.
 .BR --debug
 Enable verbose diagnostic logging on standard error.
 .TP
+.BR --timeout =\fIDURATION\fR
+Set the overall command timeout for fetching the taxonomy and running the
+classifier. Durations use Go's syntax (for example \fB2m\fR or \fB30s\fR).
+Use \fB0\fR to disable the timeout.
+.TP
 .BR --refresh-taxonomy
 Ignore any cached taxonomy file and fetch a fresh copy from the source URL.
 Taxonomies downloaded from HTTPS sources are cached for 24 hours by default

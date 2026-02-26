@@ -19,6 +19,8 @@ Flags:
         print the final taxonomy name after classification
   -stdin
         read the product description from standard input
+  -timeout duration
+        overall timeout for taxonomy fetch + classification (e.g. 2m, 30s) (default 5m0s)
   -taxonomy-url string
     	URL or file path for the Shopify taxonomy JSON (default "https://raw.githubusercontent.com/Shopify/product-taxonomy/refs/heads/main/dist/en/taxonomy.json")
   -version

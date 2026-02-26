@@ -86,3 +86,37 @@ func TestParseSelectionArgsMissingField(t *testing.T) {
 		t.Fatal("expected error for missing selection field")
 	}
 }
+
+func TestParseSelectionArgsAcceptsNumericSelection(t *testing.T) {
+	got, err := parseSelectionArgs(`{"selection":2}`)
+	if err != nil {
+		t.Fatalf("parseSelectionArgs returned error: %v", err)
+	}
+	if got != "2" {
+		t.Fatalf("parseSelectionArgs returned %q", got)
+	}
+}
+
+func TestParseSelectionArgsNormalizesNoneOfTheseVariants(t *testing.T) {
+	got, err := parseSelectionArgs(`{"selection":"none of these"}`)
+	if err != nil {
+		t.Fatalf("parseSelectionArgs returned error: %v", err)
+	}
+	if got != noneSelection {
+		t.Fatalf("parseSelectionArgs returned %q", got)
+	}
+}
+
+func TestNormalizeSelectionDoesNotAssumeOptionCount(t *testing.T) {
+	got := normalizeSelection("1", 0)
+	if got != "1" {
+		t.Fatalf("normalizeSelection returned %q", got)
+	}
+}
+
+func TestNormalizeSelectionMapsNumberedNoneToNoneOfThese(t *testing.T) {
+	got := normalizeSelection("13", 12)
+	if got != noneSelection {
+		t.Fatalf("normalizeSelection returned %q", got)
+	}
+}

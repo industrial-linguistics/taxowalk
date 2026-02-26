@@ -88,13 +88,13 @@ func (m *OpenAIModel) ChooseOption(ctx context.Context, prompt Prompt) (*Result,
 			sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, label))
 		}
 	}
-	sb.WriteString(fmt.Sprintf("%d. none of these\n", len(prompt.Options)+1))
-	sb.WriteString("\nUse the tool argument 'selection' with values 1..N to pick a category, or 'none_of_these'.")
+	sb.WriteString("\nIf none of the categories match, use selection='none_of_these'.")
 
-	allowedSelections := make([]string, 0, len(prompt.Options)+1)
+	allowedSelections := make([]string, 0, len(prompt.Options)+2)
 	for i := range prompt.Options {
 		allowedSelections = append(allowedSelections, strconv.Itoa(i+1))
 	}
+	allowedSelections = append(allowedSelections, strconv.Itoa(len(prompt.Options)+1)) // Backwards-compat for earlier prompts numbering "none of these".
 	allowedSelections = append(allowedSelections, noneSelection)
 
 	selectionTool := openai.Tool{
@@ -143,6 +143,7 @@ func (m *OpenAIModel) ChooseOption(ctx context.Context, prompt Prompt) (*Result,
 	if err != nil {
 		return nil, err
 	}
+	selection = normalizeSelection(selection, len(prompt.Options))
 
 	result := &Result{
 		Choice: "none of these",
@@ -177,8 +178,22 @@ func (m *OpenAIModel) ChooseOption(ctx context.Context, prompt Prompt) (*Result,
 	return result, nil
 }
 
-type selectionArgs struct {
-	Selection string `json:"selection"`
+func normalizeSelection(selection string, optionCount int) string {
+	selection = strings.TrimSpace(selection)
+	switch strings.ToLower(selection) {
+	case noneSelection, "none", "none of these", "none-of-these":
+		return noneSelection
+	default:
+	}
+
+	oneBased, err := strconv.Atoi(selection)
+	if err != nil {
+		return selection
+	}
+	if optionCount > 0 && oneBased == optionCount+1 {
+		return noneSelection
+	}
+	return selection
 }
 
 func parseSelection(msg openai.ChatCompletionMessage) (string, error) {
@@ -203,13 +218,31 @@ func parseSelectionArgs(raw string) (string, error) {
 	if raw == "" {
 		return "", errors.New("model returned empty selection payload")
 	}
-	var payload selectionArgs
-	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+
+	dec := json.NewDecoder(strings.NewReader(raw))
+	dec.UseNumber()
+	var payload map[string]any
+	if err := dec.Decode(&payload); err != nil {
 		return "", fmt.Errorf("failed to parse selection payload: %w", err)
 	}
-	selection := strings.TrimSpace(payload.Selection)
+	rawSelection, ok := payload["selection"]
+	if !ok {
+		return "", errors.New("selection payload missing selection field")
+	}
+
+	var selection string
+	switch v := rawSelection.(type) {
+	case string:
+		selection = v
+	case json.Number:
+		selection = v.String()
+	default:
+		return "", fmt.Errorf("selection payload has unsupported selection type %T", rawSelection)
+	}
+
+	selection = strings.TrimSpace(selection)
 	if selection == "" {
 		return "", errors.New("selection payload missing selection field")
 	}
-	return selection, nil
+	return normalizeSelection(selection, 0), nil
 }
