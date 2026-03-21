@@ -31,7 +31,7 @@ func NewOpenAIModel(apiKey string, opts ...OptionFunc) (*OpenAIModel, error) {
 		opt.apply(&cfg)
 	}
 	client := openai.NewClientWithConfig(cfg)
-	return &OpenAIModel{client: client, model: "gpt-5-mini"}, nil
+	return &OpenAIModel{client: client, model: "gpt-5.4-mini"}, nil
 }
 
 type OptionFunc interface {
