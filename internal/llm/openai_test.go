@@ -1,6 +1,7 @@
 package llm
 
 import (
+	"errors"
 	"testing"
 
 	openai "github.com/sashabaranov/go-openai"
@@ -118,5 +119,29 @@ func TestNormalizeSelectionMapsNumberedNoneToNoneOfThese(t *testing.T) {
 	got := normalizeSelection("13", 12)
 	if got != noneSelection {
 		t.Fatalf("normalizeSelection returned %q", got)
+	}
+}
+
+func TestDescribeCreateChatCompletionErrorForRequestError(t *testing.T) {
+	err := describeCreateChatCompletionError(&openai.RequestError{
+		HTTPStatusCode: 503,
+		Err:            errors.New("invalid character 'u' looking for beginning of value"),
+	})
+	got := err.Error()
+	want := "chat completion request failed before tool parsing: endpoint returned HTTP 503 with a non-JSON error response: invalid character 'u' looking for beginning of value"
+	if got != want {
+		t.Fatalf("describeCreateChatCompletionError returned %q", got)
+	}
+}
+
+func TestDescribeCreateChatCompletionErrorForAPIError(t *testing.T) {
+	err := describeCreateChatCompletionError(&openai.APIError{
+		HTTPStatusCode: 503,
+		Message:        "That model is currently overloaded",
+	})
+	got := err.Error()
+	want := "chat completion request failed: endpoint returned HTTP 503: That model is currently overloaded"
+	if got != want {
+		t.Fatalf("describeCreateChatCompletionError returned %q", got)
 	}
 }

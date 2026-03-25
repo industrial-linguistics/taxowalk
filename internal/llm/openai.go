@@ -133,7 +133,7 @@ func (m *OpenAIModel) ChooseOption(ctx context.Context, prompt Prompt) (*Result,
 		ParallelToolCalls: false,
 	})
 	if err != nil {
-		return nil, err
+		return nil, describeCreateChatCompletionError(err)
 	}
 	if len(resp.Choices) == 0 {
 		return nil, errors.New("no completion choices returned")
@@ -201,16 +201,32 @@ func parseSelection(msg openai.ChatCompletionMessage) (string, error) {
 		if tc.Type != openai.ToolTypeFunction || tc.Function.Name != selectionToolName {
 			continue
 		}
-		selection, err := parseSelectionArgs(tc.Function.Arguments)
-		if err != nil {
-			return "", err
-		}
-		return selection, nil
+		return parseSelectionArgs(tc.Function.Arguments)
 	}
 	if msg.FunctionCall != nil && msg.FunctionCall.Name == selectionToolName {
 		return parseSelectionArgs(msg.FunctionCall.Arguments)
 	}
 	return "", errors.New("model did not return selection tool call")
+}
+
+func describeCreateChatCompletionError(err error) error {
+	var reqErr *openai.RequestError
+	if errors.As(err, &reqErr) {
+		if reqErr.Err != nil {
+			return fmt.Errorf("chat completion request failed before tool parsing: endpoint returned HTTP %d with a non-JSON error response: %v", reqErr.HTTPStatusCode, reqErr.Err)
+		}
+		return fmt.Errorf("chat completion request failed before tool parsing: endpoint returned HTTP %d with an unreadable error response", reqErr.HTTPStatusCode)
+	}
+
+	var apiErr *openai.APIError
+	if errors.As(err, &apiErr) {
+		if msg := strings.TrimSpace(apiErr.Message); msg != "" {
+			return fmt.Errorf("chat completion request failed: endpoint returned HTTP %d: %s", apiErr.HTTPStatusCode, msg)
+		}
+		return fmt.Errorf("chat completion request failed: endpoint returned HTTP %d", apiErr.HTTPStatusCode)
+	}
+
+	return err
 }
 
 func parseSelectionArgs(raw string) (string, error) {
