@@ -7,19 +7,28 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	openai "github.com/sashabaranov/go-openai"
 	"github.com/sashabaranov/go-openai/jsonschema"
 )
 
+type chatCompletionClient interface {
+	CreateChatCompletion(ctx context.Context, request openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error)
+}
+
 type OpenAIModel struct {
-	client *openai.Client
-	model  string
+	client         chatCompletionClient
+	model          string
+	maxAttempts    int
+	retryBaseDelay time.Duration
+	sleep          func(ctx context.Context, d time.Duration) error
 }
 
 const (
-	selectionToolName = "select_taxonomy_category"
-	noneSelection     = "none_of_these"
+	selectionToolName  = "select_taxonomy_category"
+	noneSelection      = "none_of_these"
+	defaultMaxAttempts = 3
 )
 
 func NewOpenAIModel(apiKey string, opts ...OptionFunc) (*OpenAIModel, error) {
@@ -31,7 +40,13 @@ func NewOpenAIModel(apiKey string, opts ...OptionFunc) (*OpenAIModel, error) {
 		opt.apply(&cfg)
 	}
 	client := openai.NewClientWithConfig(cfg)
-	return &OpenAIModel{client: client, model: "gpt-5.4-mini"}, nil
+	return &OpenAIModel{
+		client:         client,
+		model:          "gpt-5.4-mini",
+		maxAttempts:    defaultMaxAttempts,
+		retryBaseDelay: time.Second,
+		sleep:          sleepWithContext,
+	}, nil
 }
 
 type OptionFunc interface {
@@ -116,7 +131,7 @@ func (m *OpenAIModel) ChooseOption(ctx context.Context, prompt Prompt) (*Result,
 		},
 	}
 
-	resp, err := m.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+	resp, err := m.createChatCompletion(ctx, openai.ChatCompletionRequest{
 		Model:       m.model,
 		Temperature: 0,
 		Messages: []openai.ChatCompletionMessage{
@@ -133,6 +148,9 @@ func (m *OpenAIModel) ChooseOption(ctx context.Context, prompt Prompt) (*Result,
 		ParallelToolCalls: false,
 	})
 	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return nil, err
+		}
 		return nil, describeCreateChatCompletionError(err)
 	}
 	if len(resp.Choices) == 0 {
@@ -176,6 +194,44 @@ func (m *OpenAIModel) ChooseOption(ctx context.Context, prompt Prompt) (*Result,
 	}
 
 	return result, nil
+}
+
+func (m *OpenAIModel) createChatCompletion(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+	if m == nil || m.client == nil {
+		return openai.ChatCompletionResponse{}, errors.New("model client is nil")
+	}
+
+	attempts := m.maxAttempts
+	if attempts < 1 {
+		attempts = 1
+	}
+
+	sleep := m.sleep
+	if sleep == nil {
+		sleep = sleepWithContext
+	}
+
+	var lastErr error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		resp, err := m.client.CreateChatCompletion(ctx, req)
+		if err == nil {
+			return resp, nil
+		}
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return openai.ChatCompletionResponse{}, err
+		}
+
+		lastErr = err
+		if attempt == attempts || !shouldRetryCreateChatCompletion(err) {
+			break
+		}
+
+		if err := sleep(ctx, retryDelay(attempt, m.retryBaseDelay)); err != nil {
+			return openai.ChatCompletionResponse{}, err
+		}
+	}
+
+	return openai.ChatCompletionResponse{}, lastErr
 }
 
 func normalizeSelection(selection string, optionCount int) string {
@@ -227,6 +283,68 @@ func describeCreateChatCompletionError(err error) error {
 	}
 
 	return err
+}
+
+func shouldRetryCreateChatCompletion(err error) bool {
+	var reqErr *openai.RequestError
+	if errors.As(err, &reqErr) {
+		return retryableHTTPStatus(reqErr.HTTPStatusCode)
+	}
+
+	var apiErr *openai.APIError
+	if errors.As(err, &apiErr) {
+		return retryableHTTPStatus(apiErr.HTTPStatusCode)
+	}
+
+	return false
+}
+
+func retryableHTTPStatus(status int) bool {
+	switch status {
+	case 429, 500, 502, 503, 504:
+		return true
+	default:
+		return false
+	}
+}
+
+func retryDelay(attempt int, base time.Duration) time.Duration {
+	if base <= 0 {
+		base = time.Second
+	}
+	if attempt < 1 {
+		attempt = 1
+	}
+
+	delay := base
+	for i := 1; i < attempt; i++ {
+		if delay > time.Duration(^uint64(0)>>1)/2 {
+			return time.Duration(^uint64(0) >> 1)
+		}
+		delay *= 2
+	}
+	return delay
+}
+
+func sleepWithContext(ctx context.Context, d time.Duration) error {
+	if d <= 0 {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			return nil
+		}
+	}
+
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func parseSelectionArgs(raw string) (string, error) {

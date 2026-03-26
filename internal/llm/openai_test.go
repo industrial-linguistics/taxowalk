@@ -1,11 +1,32 @@
 package llm
 
 import (
+	"context"
 	"errors"
 	"testing"
+	"time"
 
 	openai "github.com/sashabaranov/go-openai"
 )
+
+type fakeChatCompletionClient struct {
+	responses []fakeChatCompletionResult
+	calls     int
+}
+
+type fakeChatCompletionResult struct {
+	resp openai.ChatCompletionResponse
+	err  error
+}
+
+func (f *fakeChatCompletionClient) CreateChatCompletion(_ context.Context, _ openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+	idx := f.calls
+	f.calls++
+	if idx >= len(f.responses) {
+		return openai.ChatCompletionResponse{}, errors.New("unexpected CreateChatCompletion call")
+	}
+	return f.responses[idx].resp, f.responses[idx].err
+}
 
 func TestParseSelectionFromToolCall(t *testing.T) {
 	msg := openai.ChatCompletionMessage{
@@ -143,5 +164,165 @@ func TestDescribeCreateChatCompletionErrorForAPIError(t *testing.T) {
 	want := "chat completion request failed: endpoint returned HTTP 503: That model is currently overloaded"
 	if got != want {
 		t.Fatalf("describeCreateChatCompletionError returned %q", got)
+	}
+}
+
+func TestChooseOptionRetriesRetryableAPIError(t *testing.T) {
+	client := &fakeChatCompletionClient{
+		responses: []fakeChatCompletionResult{
+			{
+				err: &openai.APIError{
+					HTTPStatusCode: 500,
+					Message:        "Internal server error",
+				},
+			},
+			{
+				resp: openai.ChatCompletionResponse{
+					Choices: []openai.ChatCompletionChoice{
+						{
+							Message: openai.ChatCompletionMessage{
+								ToolCalls: []openai.ToolCall{
+									{
+										ID:   "call_1",
+										Type: openai.ToolTypeFunction,
+										Function: openai.FunctionCall{
+											Name:      selectionToolName,
+											Arguments: `{"selection":"1"}`,
+										},
+									},
+								},
+							},
+						},
+					},
+					Usage: openai.Usage{
+						PromptTokens:     11,
+						CompletionTokens: 3,
+						TotalTokens:      14,
+					},
+				},
+			},
+		},
+	}
+
+	sleepCalls := 0
+	model := &OpenAIModel{
+		client:         client,
+		model:          "gpt-5.4-mini",
+		maxAttempts:    3,
+		retryBaseDelay: time.Millisecond,
+		sleep: func(_ context.Context, _ time.Duration) error {
+			sleepCalls++
+			return nil
+		},
+	}
+
+	result, err := model.ChooseOption(context.Background(), Prompt{
+		Description: "cotton t-shirt",
+		Options: []Option{
+			{Name: "Shirts", FullName: "Apparel & Accessories > Clothing > Shirts", ID: "aa-1"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("ChooseOption returned error: %v", err)
+	}
+	if client.calls != 2 {
+		t.Fatalf("CreateChatCompletion calls = %d, want 2", client.calls)
+	}
+	if sleepCalls != 1 {
+		t.Fatalf("sleep calls = %d, want 1", sleepCalls)
+	}
+	if result.Choice != "aa-1" {
+		t.Fatalf("result choice = %q, want %q", result.Choice, "aa-1")
+	}
+}
+
+func TestChooseOptionDoesNotRetryPermanentAPIError(t *testing.T) {
+	client := &fakeChatCompletionClient{
+		responses: []fakeChatCompletionResult{
+			{
+				err: &openai.APIError{
+					HTTPStatusCode: 400,
+					Message:        "Bad request",
+				},
+			},
+		},
+	}
+
+	sleepCalls := 0
+	model := &OpenAIModel{
+		client:         client,
+		model:          "gpt-5.4-mini",
+		maxAttempts:    3,
+		retryBaseDelay: time.Millisecond,
+		sleep: func(_ context.Context, _ time.Duration) error {
+			sleepCalls++
+			return nil
+		},
+	}
+
+	_, err := model.ChooseOption(context.Background(), Prompt{
+		Description: "cotton t-shirt",
+		Options: []Option{
+			{Name: "Shirts", FullName: "Apparel & Accessories > Clothing > Shirts", ID: "aa-1"},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected ChooseOption to return an error")
+	}
+	if client.calls != 1 {
+		t.Fatalf("CreateChatCompletion calls = %d, want 1", client.calls)
+	}
+	if sleepCalls != 0 {
+		t.Fatalf("sleep calls = %d, want 0", sleepCalls)
+	}
+	want := "chat completion request failed: endpoint returned HTTP 400: Bad request"
+	if err.Error() != want {
+		t.Fatalf("ChooseOption error = %q, want %q", err.Error(), want)
+	}
+}
+
+func TestShouldRetryCreateChatCompletion(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{
+			name: "api 500",
+			err: &openai.APIError{
+				HTTPStatusCode: 500,
+				Message:        "Internal server error",
+			},
+			want: true,
+		},
+		{
+			name: "request 503",
+			err: &openai.RequestError{
+				HTTPStatusCode: 503,
+				Err:            errors.New("upstream unavailable"),
+			},
+			want: true,
+		},
+		{
+			name: "api 400",
+			err: &openai.APIError{
+				HTTPStatusCode: 400,
+				Message:        "Bad request",
+			},
+			want: false,
+		},
+		{
+			name: "plain error",
+			err:  errors.New("boom"),
+			want: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := shouldRetryCreateChatCompletion(tc.err); got != tc.want {
+				t.Fatalf("shouldRetryCreateChatCompletion() = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }
