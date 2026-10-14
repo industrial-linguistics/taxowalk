@@ -2,7 +2,10 @@ package llm
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -17,6 +20,54 @@ type fakeChatCompletionClient struct {
 type fakeChatCompletionResult struct {
 	resp openai.ChatCompletionResponse
 	err  error
+}
+
+func TestChooseOptionSendsNonReasoningToolRequest(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/v1/chat/completions" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		var request openai.ChatCompletionRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Errorf("decode request: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if request.ReasoningEffort != "none" {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error":{"message":"Function tools require reasoning_effort none","type":"invalid_request_error"}}`))
+			return
+		}
+		if request.Model != "gpt-5.6-luna" {
+			t.Errorf("model = %q, want gpt-5.6-luna", request.Model)
+		}
+		if len(request.Tools) != 1 || request.Tools[0].Function == nil || request.Tools[0].Function.Name != selectionToolName {
+			t.Errorf("missing taxonomy selection tool: %+v", request.Tools)
+		}
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","tool_calls":[{"id":"call_1","type":"function","function":{"name":"select_taxonomy_category","arguments":"{\"selection\":\"1\"}"}}]}}],"usage":{"prompt_tokens":11,"completion_tokens":3,"total_tokens":14}}`))
+	}))
+	defer server.Close()
+
+	model, err := NewOpenAIModel("test-key", WithBaseURL(server.URL+"/v1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := model.ChooseOption(context.Background(), Prompt{
+		Description: "cotton t-shirt",
+		Options:     []Option{{Name: "Shirts", ID: "aa-1"}},
+	})
+	if err != nil {
+		t.Fatalf("ChooseOption returned error: %v", err)
+	}
+	if result.Choice != "aa-1" || result.ChoiceIndex == nil || *result.ChoiceIndex != 0 {
+		t.Fatalf("unexpected selection: %+v", result)
+	}
+	if result.Usage.TotalTokens != 14 {
+		t.Fatalf("total tokens = %d, want 14", result.Usage.TotalTokens)
+	}
 }
 
 func (f *fakeChatCompletionClient) CreateChatCompletion(_ context.Context, _ openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {

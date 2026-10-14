@@ -132,8 +132,10 @@ func (m *OpenAIModel) ChooseOption(ctx context.Context, prompt Prompt) (*Result,
 	}
 
 	resp, err := m.createChatCompletion(ctx, openai.ChatCompletionRequest{
-		Model:       m.model,
-		Temperature: 0,
+		Model: m.model,
+		// Function tools in Chat Completions require non-reasoning mode for this model.
+		ReasoningEffort: "none",
+		Temperature:     0,
 		Messages: []openai.ChatCompletionMessage{
 			{Role: openai.ChatMessageRoleSystem, Content: "You classify Shopify products."},
 			{Role: openai.ChatMessageRoleUser, Content: sb.String()},
